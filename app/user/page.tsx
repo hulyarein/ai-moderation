@@ -6,6 +6,7 @@ import React, { useState } from "react";
 type Post = {
   file: string;
   type: "image" | "text";
+  reviewed: boolean;
 };
 
 export default function Page() {
@@ -14,18 +15,22 @@ export default function Page() {
     {
       file: "https://i.pinimg.com/736x/5b/d0/d9/5bd0d9def4d48d8ad5fe03ba2be27acd.jpg",
       type: "image",
+      reviewed: false,
     },
     {
       file: "Today I went to the park and saw the most amazing sunset!",
       type: "text",
+      reviewed: true,
     },
     {
       file: "https://i.pinimg.com/736x/a3/52/fc/a352fce9be482c9021a0f23227f7d051.jpg",
       type: "image",
+      reviewed: true,
     },
     {
       file: "Today I went to the park and saw the most amazing sunset!",
       type: "text",
+      reviewed: false,
     },
   ]);
 
@@ -59,7 +64,12 @@ export default function Page() {
       </div>
       <div className="flex flex-col gap-6 p-4 sm:p-6 items-center w-full lg:w-3/5 bg-white h-[calc(100vh-16rem)] lg:h-screen overflow-y-auto">
         {posts.map((post, idx) => (
-          <PostCard key={idx} file={post.file} type={post.type} />
+          <PostCard
+            key={idx}
+            file={post.file}
+            type={post.type}
+            reviewed={post.reviewed}
+          />
         ))}
       </div>
     </div>

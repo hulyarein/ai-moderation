@@ -6,7 +6,11 @@ import { Paperclip } from "lucide-react";
 type PostModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (post: { file: string; type: "text" | "image" }) => void;
+  onSubmit: (post: {
+    file: string;
+    type: "text" | "image";
+    reviewed: boolean;
+  }) => void;
 };
 
 const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
@@ -28,11 +32,11 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
 
   const handlePost = () => {
     if (activeTab === "text" && text.trim()) {
-      onSubmit({ file: text.trim(), type: "text" });
+      onSubmit({ file: text.trim(), type: "text", reviewed: false });
       resetAndClose();
     } else if (activeTab === "image" && selectedFile) {
       const imageUrl = URL.createObjectURL(selectedFile);
-      onSubmit({ file: imageUrl, type: "image" });
+      onSubmit({ file: imageUrl, type: "image", reviewed: false });
       resetAndClose();
     }
   };
