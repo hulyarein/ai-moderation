@@ -40,10 +40,16 @@ export default function Page() {
         onClose={() => setModalOpen(false)}
         onSubmit={handleAddPost}
       />
-      <div className="w-2/5 h-screen flex flex-col items-center bg-red-900 border rounded-tr-3xl rounded-br-3xl border-red-900 p-6 justify-between">
+      <div
+        className="w-2/5 h-screen flex flex-col items-center border-0 rounded-tr-3xl rounded-br-3xl p-6 justify-between bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "url('https://i.pinimg.com/736x/b3/52/70/b35270039cd08b7aa332a3e95d9953af.jpg')",
+        }}
+      >
         <h1 className="text-white font-bold text-3xl">Welcome, User!</h1>
         <button
-          className="w-2/3 h-12 rounded-lg border-white bg-white text-red-900 font-bold text-2xl"
+          className="w-2/3 h-12 rounded-lg border-white bg-white text-red-900 font-bold text-2xl hover:bg-black hover:text-white"
           onClick={() => setModalOpen(true)}
         >
           Create post
