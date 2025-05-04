@@ -3,19 +3,21 @@ import concurrent.futures
 import time
 
 # The URL you want to test
-# url = "https://aliac-ai-moderation-backend.wetooa.me/predict-deepfake-url"
+url = "https://aliac-ai-moderation-backend.wetooa.me/predict-deepfake-url"
 
 # The data to be passed in the POST request
+data = {
+    "image_url": "https://fastly.picsum.photos/id/260/200/300.jpg?hmac=_VpBxDn0zencTyMnssCV14LkW80zG7vw2rw7WCQ2uVo"
+}
+
+
+# # The URL you want to test
+# url = "https://aliac-ai-moderation-backend.wetooa.me/predict-toxicity"
+#
+# # The data to be passed in the POST request
 # data = {
-#     "image_url": "https://fastly.picsum.photos/id/260/200/300.jpg?hmac=_VpBxDn0zencTyMnssCV14LkW80zG7vw2rw7WCQ2uVo"
+#     "text": "Bitch fuck you, you are the fucking ugliest bitch as motherfucker, Bitch fuck you, you are the fucking ugliest bitch as motherfucker, pBitch fuck you, you are the fucking ugliest bitch as motherfucker"
 # }
-
-
-# The URL you want to test
-url = "https://aliac-ai-moderation-backend.wetooa.me/predict-toxicity"
-
-# The data to be passed in the POST request
-data = {"text": "Bitch fuck you"}
 
 
 # Function to send a request
