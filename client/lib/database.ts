@@ -1,17 +1,16 @@
-import { supabase } from "./supabase";
-import { Post } from "./socket";
-import {
-  emitNewPost,
-  emitPostRemoved,
-  emitPostReviewed,
-  emitPostApproved,
-  emitPostRejected,
-} from "./socketEmitter";
+import { supabase, RealtimePostEvent } from "./supabase";
 import { getRandomProfilePicture } from "../utils/profilePictureSelector";
+import {
+  broadcastNewPost,
+  broadcastPostRemoved,
+  broadcastPostReviewed,
+  broadcastPostApproved,
+  broadcastPostRejected,
+} from "./realtimeBroadcaster";
 
 // Create a new post in the database
 export const createPost = async (
-  post: Omit<Post, "id"> & { username?: string }
+  post: Omit<RealtimePostEvent, "id"> & { username?: string }
 ) => {
   // Check if there's a current session before creating a post
   const { data: sessionData } = await supabase.auth.getSession();
@@ -45,15 +44,60 @@ export const createPost = async (
   if (error) {
     console.error("Error creating post:", error.message);
   } else if (data) {
-    // Emit the new post event via WebSocket
+    // Broadcast the new post event via Supabase realtime
     try {
-      emitNewPost(data);
-    } catch (socketError) {
-      console.error("Failed to emit new post via WebSocket:", socketError);
+      await broadcastNewPost(data);
+    } catch (realtimeError) {
+      console.error(
+        "Failed to broadcast new post via realtime:",
+        realtimeError
+      );
     }
   }
 
   return { data, error };
+};
+
+// Upload a post with file data
+export const uploadPost = async (
+  formData: FormData,
+  userId: string,
+  username: string,
+  profilePic: string | null
+) => {
+  try {
+    const file = formData.get("file") as File;
+    const caption = formData.get("caption") as string;
+    const typeValue = formData.get("type") as string;
+
+    // Validate that type is one of the allowed values
+    const type =
+      typeValue === "image" || typeValue === "text"
+        ? (typeValue as "image" | "text")
+        : "text"; // Default to text if invalid value
+
+    // Convert file to base64 or URL - this is a placeholder implementation
+    // In a real app, you'd likely upload the file to storage and get a URL
+    const fileUrl = URL.createObjectURL(file);
+
+    // Create the post with the converted file
+    // Note: caption is used in file/content or may be stored elsewhere in real implementation
+    const fileContent = caption ? `${fileUrl} - ${caption}` : fileUrl;
+
+    return await createPost({
+      file: fileContent,
+      type,
+      userId,
+      username,
+      profile: profilePic || undefined,
+      approved: true, // Default to approved
+      reviewed: false, // Default to not reviewed
+      createdAt: new Date().toISOString(), // Add the missing createdAt field
+    });
+  } catch (error) {
+    console.error("Error in uploadPost:", error);
+    return { data: null, error: { message: "Failed to upload post" } };
+  }
 };
 
 // Get all posts from the database
@@ -101,11 +145,14 @@ export const updatePostReviewStatus = async (
     .single();
 
   if (!error && data) {
-    // Emit post reviewed event via WebSocket
+    // Broadcast post reviewed event via Supabase realtime
     try {
-      emitPostReviewed(postId);
-    } catch (socketError) {
-      console.error("Failed to emit post reviewed via WebSocket:", socketError);
+      await broadcastPostReviewed(postId);
+    } catch (realtimeError) {
+      console.error(
+        "Failed to broadcast post reviewed via realtime:",
+        realtimeError
+      );
     }
   }
 
@@ -125,15 +172,18 @@ export const updatePostApprovalStatus = async (
     .single();
 
   if (!error && data) {
-    // Emit appropriate event based on approval status
+    // Broadcast appropriate event based on approval status
     try {
       if (approved) {
-        emitPostApproved(postId);
+        await broadcastPostApproved(postId);
       } else {
-        emitPostRejected(postId);
+        await broadcastPostRejected(postId);
       }
-    } catch (socketError) {
-      console.error("Failed to emit post status via WebSocket:", socketError);
+    } catch (realtimeError) {
+      console.error(
+        "Failed to broadcast post status via realtime:",
+        realtimeError
+      );
     }
   }
 
@@ -145,11 +195,14 @@ export const deletePost = async (postId: string) => {
   const { error } = await supabase.from("posts").delete().eq("id", postId);
 
   if (!error) {
-    // Emit post removed event via WebSocket
+    // Broadcast post removed event via Supabase realtime
     try {
-      emitPostRemoved(postId);
-    } catch (socketError) {
-      console.error("Failed to emit post removed via WebSocket:", socketError);
+      await broadcastPostRemoved(postId);
+    } catch (realtimeError) {
+      console.error(
+        "Failed to broadcast post removed via realtime:",
+        realtimeError
+      );
     }
   }
 
@@ -216,13 +269,13 @@ export const detectToxicPosts = async () => {
 
         if (!updateError) {
           toxic++;
-          // Emit post reviewed event via WebSocket
+          // Broadcast post reviewed event via Supabase realtime
           try {
-            emitPostReviewed(post.id);
-          } catch (socketError) {
+            await broadcastPostReviewed(post.id);
+          } catch (realtimeError) {
             console.error(
-              "Failed to emit post reviewed via WebSocket:",
-              socketError
+              "Failed to broadcast post reviewed via realtime:",
+              realtimeError
             );
           }
         }
@@ -299,13 +352,13 @@ export const detectDeepfakeImages = async () => {
 
         if (!updateError) {
           deepfakes++;
-          // Emit post reviewed event via WebSocket
+          // Broadcast post reviewed event via Supabase realtime
           try {
-            emitPostReviewed(post.id);
-          } catch (socketError) {
+            await broadcastPostReviewed(post.id);
+          } catch (realtimeError) {
             console.error(
-              "Failed to emit post reviewed via WebSocket:",
-              socketError
+              "Failed to broadcast post reviewed via realtime:",
+              realtimeError
             );
           }
         }

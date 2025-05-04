@@ -16,20 +16,20 @@ export const useSocket = (roomType: keyof typeof CLIENT_ROOMS) => {
   useEffect(() => {
     if (!socketInstance) {
       // Create a new socket instance if it doesn't exist
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = window.location.host;
       const baseUrl =
-        process.env.NODE_ENV === "production"
-          ? `${protocol}//${host}`
-          : "http://localhost:3000";
+        process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
 
-      socketInstance = io(baseUrl, {
+      console.log(`Connecting to socket at: ${baseUrl}`);
+
+      socketInstance = io({
         path: "/api/socketio",
         addTrailingSlash: false,
-        transports: ["websocket", "polling"], // Prefer WebSocket, fallback to polling
+        transports: ["polling", "websocket"], // Try polling first for Vercel, then websocket
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000, // Increase timeout for Vercel
       });
     }
 
