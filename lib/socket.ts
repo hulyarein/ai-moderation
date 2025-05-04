@@ -9,6 +9,7 @@ export type Post = {
   type: "image" | "text";
   userId?: string;
   username?: string;
+  profile?: string; // Profile picture path
   reviewed: boolean;
   approved: boolean;
   createdAt: string;

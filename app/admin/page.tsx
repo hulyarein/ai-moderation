@@ -9,8 +9,12 @@ import {
   deletePost,
 } from "@/lib/database";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
+import { getRandomProfilePicture } from "@/utils/profilePictureSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+// Create a map to store profile pictures for each username
+const userProfileMap = new Map<string, string>();
 
 export default function Page() {
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -22,6 +26,15 @@ export default function Page() {
   const { socket, isConnected, emitPostReviewed, emitPostRemoved } =
     useSocket("ADMIN");
   const router = useRouter();
+
+  // Function to get or create a profile picture for a username
+  const getProfilePictureForUser = (username: string): string => {
+    if (!userProfileMap.has(username)) {
+      // Generate a new profile picture path and store it in the map
+      userProfileMap.set(username, getRandomProfilePicture());
+    }
+    return userProfileMap.get(username) || "/profiles/default_profile.jpeg";
+  };
 
   // Check if user is authenticated and is an admin
   useEffect(() => {
@@ -342,6 +355,7 @@ export default function Page() {
                       file={post.file}
                       type={post.type}
                       username={post.username}
+                      profilePicture={post.profile}
                       reviewed={post.reviewed}
                       approved={post.approved}
                       classification={
@@ -392,6 +406,7 @@ export default function Page() {
                     file={post.file}
                     type={post.type}
                     username={post.username}
+                    profilePicture={post.profile}
                     reviewed={post.reviewed}
                     approved={post.approved}
                     classification={
@@ -445,6 +460,7 @@ export default function Page() {
                     file={post.file}
                     type={post.type}
                     username={post.username}
+                    profilePicture={post.profile}
                     reviewed={post.reviewed}
                     approved={post.approved}
                     classification={

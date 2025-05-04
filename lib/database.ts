@@ -7,6 +7,7 @@ import {
   emitPostApproved,
   emitPostRejected,
 } from "./socketEmitter";
+import { getRandomProfilePicture } from "../utils/profilePictureSelector";
 
 // Create a new post in the database
 export const createPost = async (
@@ -23,12 +24,16 @@ export const createPost = async (
     );
   }
 
+  // Get a random profile picture
+  const randomProfilePicture = getRandomProfilePicture();
+
   // Set default values if not provided
   const postWithDefaults = {
     ...post,
     approved: post.approved !== undefined ? post.approved : true, // Default to approved
     userId: currentUserId || post.userId,
     username: post.username,
+    profile: post.profile || randomProfilePicture, // Use provided profile or random one
   };
 
   const { data, error } = await supabase
