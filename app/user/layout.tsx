@@ -22,7 +22,7 @@ export default function UserLayout({
   }
 
   return (
-    <div className="h-screen w-full overflow-hidden grid grid-cols-1 lg:grid-cols-[400px_1fr] xl:grid-cols-[500px_1fr]">
+    <div className="min-h-screen w-full overflow-x-hidden grid grid-cols-1 lg:grid-cols-[400px_1fr] xl:grid-cols-[500px_1fr]">
       {/* This grid layout will allow the sidebar to be fixed and the content scrollable */}
       {children}
     </div>

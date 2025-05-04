@@ -15,6 +15,11 @@ export default function Page() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
+  const [refreshingUsername, setRefreshingUsername] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const newPostIds = useRef<Set<string>>(new Set());
 
   const {
@@ -166,11 +171,43 @@ export default function Page() {
     }
   }, [allPosts]);
 
-  // Handle profile picture refresh
+  // Handle username refresh with feedback
+  const handleRefreshUsername = async () => {
+    setRefreshingUsername(true);
+    try {
+      await refreshUsername();
+      setConfirmationMessage({ type: "success", message: "Username updated!" });
+      setTimeout(() => setConfirmationMessage(null), 3000);
+    } catch (error) {
+      setConfirmationMessage({
+        type: "error",
+        message: "Failed to update username",
+      });
+      setTimeout(() => setConfirmationMessage(null), 3000);
+    } finally {
+      setRefreshingUsername(false);
+    }
+  };
+
+  // Enhanced profile picture refresh with feedback
   const handleRefreshProfilePicture = async () => {
     setRefreshingProfile(true);
-    await refreshProfilePicture();
-    setRefreshingProfile(false);
+    try {
+      await refreshProfilePicture();
+      setConfirmationMessage({
+        type: "success",
+        message: "Profile picture updated!",
+      });
+      setTimeout(() => setConfirmationMessage(null), 3000);
+    } catch (error) {
+      setConfirmationMessage({
+        type: "error",
+        message: "Failed to update profile picture",
+      });
+      setTimeout(() => setConfirmationMessage(null), 3000);
+    } finally {
+      setRefreshingProfile(false);
+    }
   };
 
   const handleAddPost = async (newPostData: {
@@ -234,7 +271,7 @@ export default function Page() {
 
       {/* Sidebar - First grid cell (col-span-1 on large screens) */}
       <div
-        className="row-span-1 lg:row-span-full min-h-[320px] md:min-h-[380px] lg:h-screen flex flex-col items-center border-0 lg:border-r p-6 sm:p-8 lg:p-12 justify-between bg-cover bg-center bg-no-repeat shadow-lg"
+        className="row-span-1 lg:row-span-full w-full min-h-[420px] lg:h-screen flex flex-col items-center border-0 lg:border-r p-6 sm:p-8 lg:p-12 justify-between bg-cover bg-center bg-no-repeat shadow-lg"
         style={{
           backgroundImage:
             "linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('https://i.pinimg.com/736x/b3/52/70/b35270039cd08b7aa332a3e95d9953af.jpg')",
@@ -258,33 +295,43 @@ export default function Page() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={handleRefreshProfilePicture}
-                disabled={refreshingProfile}
-                className="absolute bottom-0 right-0 h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-red-900 text-white flex items-center justify-center shadow-md hover:bg-red-800 transition-colors"
-                title="Change profile picture"
-              >
-                {refreshingProfile ? (
-                  <div className="animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-white rounded-full border-t-transparent" />
-                ) : (
-                  <>
-                    <RefreshCw size={14} className="sm:hidden" />
-                    <RefreshCw size={16} className="hidden sm:block" />
-                  </>
-                )}
-              </button>
             </div>
 
             <h1 className="text-white font-bold text-2xl sm:text-3xl lg:text-4xl text-center drop-shadow-md">
-              Welcome, {username || "User"}!
+              Hello, {username || "User"}!
             </h1>
-            <button
-              onClick={() => refreshUsername()}
-              className="mt-2 text-white text-xs sm:text-sm bg-red-900 bg-opacity-90 px-2 sm:px-3 py-1 rounded-full hover:bg-opacity-100 transition-all duration-300 flex items-center"
-            >
-              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-              Refresh Username
-            </button>
+
+            {/* User control buttons in a row */}
+            <div className="flex flex-row space-x-2 mt-2">
+              <button
+                onClick={() => handleRefreshUsername()}
+                disabled={refreshingUsername}
+                className="text-white text-xs sm:text-sm bg-red-900 bg-opacity-90 px-2 sm:px-3 py-1 rounded-full hover:bg-opacity-100 transition-all duration-300 flex items-center
+                         btn-ripple focus:outline-none focus:ring-2 focus:ring-red-700 focus:ring-opacity-50 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow"
+              >
+                {refreshingUsername ? (
+                  <div className="animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-white rounded-full border-t-transparent mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                )}
+                {refreshingUsername ? "Updating..." : "Refresh Username"}
+              </button>
+
+              <button
+                onClick={handleRefreshProfilePicture}
+                disabled={refreshingProfile}
+                className="text-white text-xs sm:text-sm bg-red-900 bg-opacity-90 px-2 sm:px-3 py-1 rounded-full hover:bg-opacity-100 transition-all duration-300 flex items-center
+                         btn-ripple focus:outline-none focus:ring-2 focus:ring-red-700 focus:ring-opacity-50 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow"
+                title="Change profile picture"
+              >
+                {refreshingProfile ? (
+                  <div className="animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-white rounded-full border-t-transparent mr-1" />
+                ) : (
+                  <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                )}
+                {refreshingProfile ? "Updating..." : "Refresh Picture"}
+              </button>
+            </div>
           </div>
           <p className="text-white text-center text-xs sm:text-sm md:text-base opacity-90 max-w-md">
             Share your thoughts or images with the community. All posts are
@@ -306,17 +353,41 @@ export default function Page() {
         </div>
         <button
           className="w-full max-w-xs sm:max-w-sm h-10 sm:h-12 md:h-14 rounded-lg border-2 border-white bg-white text-red-900 font-bold text-lg sm:text-xl lg:text-2xl 
-                     hover:bg-transparent hover:text-white transition-all duration-300 ease-in-out shadow-md transform hover:scale-105 active:scale-95"
+                     hover:bg-transparent hover:text-white transition-all duration-300 ease-in-out shadow-md transform hover:scale-105 active:scale-90 
+                     focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
           onClick={() => setModalOpen(true)}
           data-create-post="true"
         >
-          Create post
+          <span className="flex items-center justify-center">
+            <span className="mr-2">+</span>
+            Create post
+          </span>
         </button>
       </div>
 
       {/* Content area - Second grid cell (scrollable) */}
-      <div className="row-span-1 lg:row-span-full h-screen lg:overflow-y-auto bg-white">
+      <div className="row-span-1 lg:row-span-full lg:h-screen lg:overflow-y-auto bg-white">
         <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 items-center w-full">
+          {/* Toast notification for action confirmations */}
+          {confirmationMessage && (
+            <div
+              className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-white shadow-lg
+                ${
+                  confirmationMessage.type === "success"
+                    ? "bg-green-500"
+                    : "bg-red-500"
+                }
+                animate-fade-in-out`}
+            >
+              <div className="flex items-center">
+                <span className="mr-2">
+                  {confirmationMessage.type === "success" ? "✓" : "✗"}
+                </span>
+                {confirmationMessage.message}
+              </div>
+            </div>
+          )}
+
           {allPosts.length > 0 ? (
             <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-4 sm:space-y-6 pb-6 pt-2 sm:pt-4">
               {allPosts.map((post) => (
@@ -349,9 +420,14 @@ export default function Page() {
               </p>
               <button
                 onClick={() => setModalOpen(true)}
-                className="mt-3 sm:mt-4 px-4 sm:px-6 py-1.5 sm:py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors text-sm sm:text-base"
+                className="mt-3 sm:mt-4 px-4 sm:px-6 py-1.5 sm:py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 
+                transition-all duration-300 text-sm sm:text-base shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95
+                focus:outline-none focus:ring-2 focus:ring-red-700 focus:ring-opacity-50"
               >
-                Create Now
+                <span className="flex items-center justify-center">
+                  <span className="mr-2">+</span>
+                  Create Now
+                </span>
               </button>
             </div>
           )}
