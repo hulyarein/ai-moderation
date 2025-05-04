@@ -1,95 +1,171 @@
-# API Documentation for AI Safety Analysis Backend
+# AI Moderation API Documentation
 
-## Overview
+This API provides moderation services for detecting deepfake images and toxic text content.
 
-This Flask-based API provides endpoints for analyzing images for deepfakes and text for toxicity. The backend utilizes machine learning models to perform these analyses.
+## Base URL
+
+```
+http://localhost:8002
+```
 
 ## Endpoints
 
-### 1. Detect Deepfakes
+### Health Check
 
-**Endpoint**: `/predict-deepfake`  
-**Method**: POST  
-**Description**: Analyzes an image to detect if it's a deepfake.
+Verify that the API is running.
 
-**Request**:
+```
+GET /
+```
 
-- Form data with an image file under the key "image"
-
-**Response**:
+#### Response
 
 ```json
 {
-  "is_deepfake": boolean,
-  "confidence": float,
-  "filename": string
+  "status": "success",
+  "message": "AI Moderation API is running"
 }
 ```
 
-### 2. Detect Text Toxicity
+### Detect Deepfake from File Upload
 
-**Endpoint**: `/predict-toxicity`  
-**Method**: POST  
-**Description**: Analyzes text to determine if it contains toxic content.
+Analyze an image file to determine if it's a deepfake.
 
-**Request**:
+```
+POST /predict-deepfake
+```
+
+#### Request
+
+- Content-Type: `multipart/form-data`
+- Body:
+  - `image`: Image file to analyze
+
+#### Response
 
 ```json
 {
-  "text": "text to analyze"
+  "is_deepfake": true|false,
+  "confidence": 0.95, // Value between 0-1
+  "filename": "example.jpg"
 }
 ```
 
-**Response**:
+### Detect Deepfake from URL
+
+Analyze an image from a URL to determine if it's a deepfake.
+
+```
+POST /predict-deepfake-url
+```
+
+#### Request
+
+- Content-Type: `application/json`
+- Body:
+
+  ```json
+  {
+    "image_url": "https://example.com/image.jpg"
+  }
+  ```
+
+#### Response
 
 ```json
 {
-  "text": string,
-  "is_toxic": boolean,
-  "confidence": float,
+  "is_deepfake": true|false,
+  "confidence": 0.95, // Value between 0-1
+  "image_url": "https://example.com/image.jpg"
+}
+```
+
+### Detect Toxic Text
+
+Analyze text to determine if it contains toxic content.
+
+```
+POST /predict-toxicity
+```
+
+#### Request
+
+- Content-Type: `application/json`
+- Body:
+
+  ```json
+  {
+    "text": "Text content to analyze"
+  }
+  ```
+
+#### Response
+
+```json
+{
+  "text": "Text content to analyze",
+  "is_toxic": true|false,
+  "confidence": 0.95, // Value between 0-1
   "all_probabilities": {
-    "0": float,
-    "1": float
+    "0": 0.05, // Non-toxic probability
+    "1": 0.95  // Toxic probability
   }
 }
 ```
 
-### 3. Upload Image
+### Upload Image
 
-**Endpoint**: `/images`  
-**Method**: POST  
-**Description**: Uploads an image to the server.
+Upload an image to the server.
 
-**Request**:
+```
+POST /images
+```
 
-- Form data with an image file under the key "image"
+#### Request
 
-**Response**:
+- Content-Type: `multipart/form-data`
+- Body:
+  - `image`: Image file to upload
+
+#### Response
 
 ```json
 {
-  "success": boolean,
-  "message": string,
-  "filename": string
+  "success": true,
+  "message": "Image uploaded successfully",
+  "filename": "3f2a8d4e7b9c1f5e6a3d2c1b5a4e3d2c.jpg"
 }
 ```
 
-### 4. Retrieve Image
+### Retrieve Image
 
-**Endpoint**: `/images/<filename>`  
-**Method**: GET  
-**Description**: Retrieves a previously uploaded image by its filename.
+Get a previously uploaded image.
 
-**Response**: The requested image file or an error message.
+```
+GET /images/<filename>
+```
 
-## Requirements
+#### Parameters
 
-- Flask
-- NumPy
-- PIL (Python Imaging Library)
-- TensorFlow
-- Transformers (Hugging Face)
+- `filename`: Name of the uploaded image file
 
-## Setup
+#### Response
 
-The application loads machine learning models for deepfake detection and text toxicity analysis from local directories.
+- The requested image file
+- Status code 404 if the image is not found
+
+## Error Responses
+
+All endpoints return appropriate HTTP status codes and error messages:
+
+- 400: Bad Request (missing or invalid parameters)
+- 404: Not Found
+- 500: Internal Server Error
+
+Example error response:
+
+```json
+{
+  "error": "Error message details"
+}
+```
