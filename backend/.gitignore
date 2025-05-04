@@ -3,3 +3,7 @@ uploads
 
 models/deepfake-classifier/**
 models/text-classifier/**
+
+
+Dockerfile
+docker-compose.yml
