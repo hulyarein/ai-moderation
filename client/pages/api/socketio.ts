@@ -33,14 +33,18 @@ export default function handler(
     // Enable CORS for all origins in development
     // In production, you might want to restrict this
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://ai-moderation.vercel.app').origin
-        : "*",
+      origin:
+        process.env.NODE_ENV === "production"
+          ? new URL(
+              process.env.NEXT_PUBLIC_BASE_URL ||
+                "https://ai-moderation.vercel.app"
+            ).origin
+          : "*",
       methods: ["GET", "POST"],
       credentials: true,
     },
     // Configure transports - important for Vercel
-    transports: ['websocket', 'polling'],
+    transports: ["websocket", "polling"],
   });
 
   // Store the socket.io server instance for access from anywhere
