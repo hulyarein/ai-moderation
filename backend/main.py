@@ -158,5 +158,13 @@ def get_image(filename):
         return jsonify({"error": str(e)}), 404
 
 
+@app.route("/", methods=["GET"])
+def test_route():
+    return (
+        jsonify({"status": "success", "message": "AI Moderation API is running"}),
+        200,
+    )
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=8002)
