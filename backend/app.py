@@ -54,7 +54,7 @@ def process_and_predict_image(image_data):
 
     # Predict
     prediction = deepfake_model.predict(image_array)[0][0]
-    is_deepfake = not bool(prediction > 0.9)
+    is_deepfake = not bool(prediction > 0.5)
 
     return is_deepfake, float(prediction)
 
