@@ -191,6 +191,7 @@ export default function Page() {
   // Get flagged posts (posts containing problematic content)
   const flaggedPosts = posts.filter(
     (post) =>
+      !post.approved || // Include posts marked as not approved
       post.type === "image" ||
       post.file.toLowerCase().includes("hate") ||
       post.file.toLowerCase().includes("kill") ||
@@ -323,28 +324,36 @@ export default function Page() {
             <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
               <h2 className="text-xl font-semibold text-gray-800">All Posts</h2>
               <div className="text-sm font-medium text-gray-500">
-                {posts.length} {posts.length === 1 ? "post" : "posts"} total
+                {posts.filter((post) => post.approved !== false).length}{" "}
+                {posts.filter((post) => post.approved !== false).length === 1
+                  ? "post"
+                  : "posts"}{" "}
+                total
               </div>
             </div>
 
-            {posts.length > 0 ? (
+            {posts.filter((post) => post.approved !== false).length > 0 ? (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {posts.map((post) => (
-                  <AdminPostCard
-                    key={post.id}
-                    file={post.file}
-                    type={post.type}
-                    username={post.username}
-                    reviewed={post.reviewed}
-                    approved={post.approved}
-                    classification={
-                      post.type === "image" ? "Image" : "Text Content"
-                    }
-                    hideActions={true} // Hide approve/remove buttons for all posts tab
-                    onRemove={() => handleRemovePost(post.id)}
-                    onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
-                  />
-                ))}
+                {posts
+                  .filter((post) => post.approved !== false)
+                  .map((post) => (
+                    <AdminPostCard
+                      key={post.id}
+                      file={post.file}
+                      type={post.type}
+                      username={post.username}
+                      reviewed={post.reviewed}
+                      approved={post.approved}
+                      classification={
+                        post.type === "image" ? "Image" : "Text Content"
+                      }
+                      hideActions={true} // Hide approve/remove buttons for all posts tab
+                      onRemove={() => handleRemovePost(post.id)}
+                      onMarkFalsePositive={() =>
+                        handleMarkFalsePositive(post.id)
+                      }
+                    />
+                  ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-6 bg-white rounded-xl shadow-sm border border-gray-100">
@@ -393,7 +402,7 @@ export default function Page() {
                         ? "Toxic Content"
                         : "Explicit Content"
                     }
-                    hideActions={false} // Show approve/remove buttons for flagged content
+                    hideActions={true} // Hide actions for flagged content
                     onRemove={() => handleRemovePost(post.id)}
                     onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
                   />
