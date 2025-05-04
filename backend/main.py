@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify
 import numpy as np
 from PIL import Image
-import json
 import os
 import io
+import uuid
 
+from transformers import AutoTokenizer
+
+from tensorflow.saved_model import load
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.preprocessing.text import Tokenizer
@@ -14,18 +17,18 @@ from tensorflow.keras.preprocessing.text import tokenizer_from_json
 
 app = Flask(__name__)
 
-# Load models
+
 try:
     deepfake_model = load_model("./models/deepfake-classifier/deepfake_detect.keras")
 
-    with open(
-        "./models/text-classifier/tinybert_text_classifier_tokenizer/tokenizer.json"
-    ) as f:
-        toxicity_tokenizer = tokenizer_from_json(json.load(f))
-
-    toxicity_model = load_model(
-        "./models/text-classifier/tinybert_text_classifier_model/saved_model.pb"
+    # Load the tokenizer
+    toxicity_tokenizer = AutoTokenizer.from_pretrained(
+        "./models/text-classifier/tinybert_text_classifier_tokenizer/"
     )
+
+    # Load the model (assuming TensorFlow SavedModel format)
+    toxicity_model = load("./models/text-classifier/tinybert_text_classifier_model/")
+
 
 except Exception as e:
     print(f"Error loading models: {e}")
@@ -50,10 +53,16 @@ def predict_deepfake():
         image_array = np.expand_dims(image_array, axis=0)
 
         # Make prediction
-        prediction = deepfake_model.predict(image_array)
-        is_deepfake = bool(prediction[0][0] > 0.5)
+        prediction = deepfake_model.predict(image_array)[0][0]
+        is_deepfake = not bool(prediction > 0.9)
 
-        return jsonify({"is_deepfake": is_deepfake})
+        return jsonify(
+            {
+                "is_deepfake": is_deepfake,
+                "confidence": float(prediction),
+                "filename": image_file.filename,
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -67,18 +76,37 @@ def predict_toxicity():
 
     try:
         text = data["text"]
+        max_length = 128
 
-        # Preprocess text
-        sequence = toxicity_tokenizer.texts_to_sequences([text])
-        padded_sequence = pad_sequences(
-            sequence, maxlen=100
-        )  # Adjust maxlen according to your model
+        # Tokenize the text
+        inputs = toxicity_tokenizer(
+            text,
+            padding="max_length",
+            truncation=True,
+            max_length=max_length,
+            return_tensors="tf",
+        )
 
         # Make prediction
-        prediction = toxicity_model.predict(padded_sequence)
-        is_toxic = bool(prediction[0][0] > 0.5)
+        prediction = toxicity_model(
+            {
+                "input_ids": inputs["input_ids"],
+                "attention_mask": inputs["attention_mask"],
+            }
+        )
+        predicted_class = np.argmax(prediction, axis=1)[0]
+        confidence = prediction[0][predicted_class]
 
-        return jsonify({"is_toxic": is_toxic})
+        return jsonify(
+            {
+                "text": text,
+                "is_toxic": bool(predicted_class),
+                "confidence": float(confidence),
+                "all_probabilities": {
+                    i: float(prob) for i, prob in enumerate(prediction[0])
+                },
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -94,26 +122,25 @@ def upload_image():
         if image_file.filename == "":
             return jsonify({"error": "No selected file"}), 400
 
-        # Check if a filename was provided in the form data
-        filename = request.form.get("filename")
-        if not filename:
-            # Use original filename if none provided
-            filename = image_file.filename
+        ext = os.path.splitext(str(image_file.filename))[1]  # Get original extension
+        filename = f"{uuid.uuid4().hex}{ext}"  # Generate UUID-based filename
 
         upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
         os.makedirs(upload_dir, exist_ok=True)
 
         # Save the file
-        file_path = os.path.join(upload_dir, filename)
+        file_path = os.path.join(upload_dir, str(filename))
         image_file.save(file_path)
 
-        return jsonify(
-            {
-                "success": True,
-                "message": "Image uploaded successfully",
-                "filename": filename,
-                "path": file_path,
-            }
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "message": "Image uploaded successfully",
+                    "filename": filename,
+                }
+            ),
+            200,
         )
 
     except Exception as e:

@@ -1,7 +1,7 @@
-import requests
 import json
-from PIL import Image
-import io
+
+import requests
+
 
 FAKE_IMAGE_PATH = "assets/fake_0.jpg"
 REAL_IMAGE_PATH = "assets/real_0.jpg"
@@ -35,19 +35,14 @@ def test_toxicity_endpoint():
     return response.json()
 
 
-def test_upload_image(img_path, filename=None):
-    url = "http://localhost:5000/upload-image"
+def test_upload_image(img_path):
+    url = "http://localhost:5000/image"
 
     with open(img_path, "rb") as img_file:
         files = {"image": img_file}
-        data = {}
-        if filename:
-            data["filename"] = filename
-
-        response = requests.post(url, files=files, data=data)
+        response = requests.post(url, files=files)
 
     print("Image Upload Response:")
-    print(response.json())
     return response.json()
 
 
@@ -60,11 +55,3 @@ if __name__ == "__main__":
 
     print("\nTesting toxicity endpoint...")
     test_toxicity_endpoint()
-
-    print("\nTesting image upload endpoint...")
-    upload_result = test_upload_image(FAKE_IMAGE_PATH, "uploaded_fake.jpg")
-
-    if upload_result.get("success"):
-        print(
-            f"\nYou can view the image at: http://localhost:5000/get-image/{upload_result['filename']}"
-        )
