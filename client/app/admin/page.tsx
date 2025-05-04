@@ -12,20 +12,16 @@ import {
   moderateAllContent,
 } from "@/lib/database";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
-import { getRandomProfilePicture } from "@/utils/profilePictureSelector";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Shield,
   AlertCircle,
-  LogOut,
   CheckCircle,
   RefreshCw,
   Search,
 } from "lucide-react";
-
-// Create a map to store profile pictures for each username
-const userProfileMap = new Map<string, string>();
+import Image from "next/image";
 
 export default function Page() {
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -36,18 +32,9 @@ export default function Page() {
   const [isScanningToxicity, setIsScanningToxicity] = useState(false);
   const [isScanningDeepfakes, setIsScanningDeepfakes] = useState(false);
   const [isScanningAll, setIsScanningAll] = useState(false);
-  const [secondsUntilNextCheck, setSecondsUntilNextCheck] =
-    useState<number>(60);
-  const [isModeratorPaused, setIsModeratorPaused] = useState<boolean>(false);
-  const [moderationLogs, setModerationLogs] = useState<
-    Array<{
-      message: string;
-      timestamp: Date;
-    }>
-  >([]);
   const [scanResult, setScanResult] = useState<{
     success?: boolean;
-    processed?: number;
+    simpleProcessed?: number;
     toxic?: number;
     deepfakes?: number;
     processed?: {
@@ -75,15 +62,6 @@ export default function Page() {
   const { socket, isConnected, emitPostReviewed, emitPostRemoved } =
     useSocket("ADMIN");
   const router = useRouter();
-
-  // Function to get or create a profile picture for a username
-  const getProfilePictureForUser = (username: string): string => {
-    if (!userProfileMap.has(username)) {
-      // Generate a new profile picture path and store it in the map
-      userProfileMap.set(username, getRandomProfilePicture());
-    }
-    return userProfileMap.get(username) || "/profiles/default_profile.jpeg";
-  };
 
   // Check if user is authenticated and is an admin
   useEffect(() => {
@@ -173,46 +151,11 @@ export default function Page() {
       }
     );
 
-    // Listen for moderation scan started events
-    socket.on(
-      SOCKET_EVENTS.MODERATION_SCAN_STARTED,
-      (data: { timestamp: Date; message: string }) => {
-        // Add new log entry at the beginning of the array (newest first)
-        setModerationLogs((prevLogs) => [
-          {
-            message: data.message,
-            timestamp: new Date(data.timestamp),
-          },
-          ...prevLogs.slice(0, 9), // Keep only the 10 most recent logs
-        ]);
-      }
-    );
-
-    // Listen for timer updates
-    socket.on(
-      SOCKET_EVENTS.MODERATION_TIMER_UPDATE,
-      (data: { secondsRemaining: number; isActive: boolean }) => {
-        setSecondsUntilNextCheck(data.secondsRemaining);
-        setIsModeratorPaused(!data.isActive);
-      }
-    );
-
-    // Listen for moderation status updates
-    socket.on(
-      SOCKET_EVENTS.MODERATION_STATUS_UPDATE,
-      (data: { isPaused: boolean }) => {
-        setIsModeratorPaused(data.isPaused);
-      }
-    );
-
     return () => {
       socket.off(SOCKET_EVENTS.NEW_POST);
       socket.off(SOCKET_EVENTS.POST_REMOVED);
       socket.off(SOCKET_EVENTS.POST_REVIEWED);
       socket.off(SOCKET_EVENTS.MODERATION_ALERT);
-      socket.off(SOCKET_EVENTS.MODERATION_SCAN_STARTED);
-      socket.off(SOCKET_EVENTS.MODERATION_TIMER_UPDATE);
-      socket.off(SOCKET_EVENTS.MODERATION_STATUS_UPDATE);
     };
   }, [socket]);
 
@@ -319,7 +262,10 @@ export default function Page() {
     try {
       const result = await detectToxicPosts();
       setScanResult({
-        ...result,
+        success: result.success,
+        simpleProcessed: result.processed,
+        toxic: result.toxic,
+        error: result.error,
         timestamp: new Date(),
       });
 
@@ -350,7 +296,10 @@ export default function Page() {
     try {
       const result = await detectDeepfakeImages();
       setScanResult({
-        ...result,
+        success: result.success,
+        simpleProcessed: result.processed,
+        deepfakes: result.deepfakes,
+        error: result.error,
         timestamp: new Date(),
       });
 
@@ -405,8 +354,12 @@ export default function Page() {
 
   // Calculate post statistics
   const totalPosts = posts.length;
-  const textPosts = posts.filter((post) => post.type === "text").length;
-  const imagePosts = posts.filter((post) => post.type === "image").length;
+  const textPosts = posts.filter(
+    (post) => post.type === "text" && post.approved !== false
+  ).length;
+  const imagePosts = posts.filter(
+    (post) => post.type === "image" && post.approved !== false
+  ).length;
 
   // Get flagged posts (posts containing problematic content)
   const flaggedPosts = posts.filter(
@@ -621,57 +574,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Automated Moderation Timer Panel */}
-            <div className="flex flex-col sm:flex-row items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2">
-              <div className="flex items-center mb-3 sm:mb-0">
-                <div className="mr-3">
-                  <div
-                    className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                      isModeratorPaused ? "bg-gray-200" : "bg-blue-100"
-                    }`}
-                  >
-                    <span
-                      className={`text-sm font-bold ${
-                        isModeratorPaused ? "text-gray-500" : "text-blue-700"
-                      }`}
-                    >
-                      {isModeratorPaused ? "⏸️" : secondsUntilNextCheck}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Automated Checks
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {isModeratorPaused
-                      ? "Paused - No automatic checks will run"
-                      : `Next check in ${secondsUntilNextCheck} ${
-                          secondsUntilNextCheck === 1 ? "second" : "seconds"
-                        }`}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  if (socket && isConnected) {
-                    socket.emit(
-                      SOCKET_EVENTS.TOGGLE_MODERATION,
-                      !isModeratorPaused
-                    );
-                  }
-                }}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors w-full sm:w-auto ${
-                  isModeratorPaused
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                }`}
-              >
-                {isModeratorPaused ? "Resume Auto-Checks" : "Pause Auto-Checks"}
-              </button>
-            </div>
-
             {scanResult && (
               <div
                 className={`p-3 rounded-md text-sm mt-3 ${
@@ -690,7 +592,7 @@ export default function Page() {
                       <p className="font-medium">Scan completed successfully</p>
                       {scanResult.processed && !scanResult.processed.total && (
                         <p>
-                          Processed {scanResult.processed}{" "}
+                          Processed {scanResult.simpleProcessed}{" "}
                           {isScanningDeepfakes ? "image" : "text"} posts, found{" "}
                           {isScanningDeepfakes
                             ? scanResult.deepfakes
@@ -700,17 +602,19 @@ export default function Page() {
                       )}
                       {scanResult.processed && scanResult.processed.total && (
                         <p>
-                          Processed {scanResult.processed.total} posts (
-                          {scanResult.processed.text} text,{" "}
-                          {scanResult.processed.images} images), found{" "}
-                          {scanResult.flagged.total} with potentially harmful
-                          content ({scanResult.flagged.toxic} toxic text,{" "}
-                          {scanResult.flagged.deepfakes} deepfake images).
+                          Processed {scanResult.processed?.total || 0} posts (
+                          {scanResult.processed?.text || 0} text,{" "}
+                          {scanResult.processed?.images || 0} images), found{" "}
+                          {scanResult.flagged?.total || 0} with potentially
+                          harmful content ({scanResult.flagged?.toxic || 0}{" "}
+                          toxic text, {scanResult.flagged?.deepfakes || 0}{" "}
+                          deepfake images).
                         </p>
                       )}
                       {((scanResult.toxic && scanResult.toxic > 0) ||
                         (scanResult.deepfakes && scanResult.deepfakes > 0) ||
                         (scanResult.flagged &&
+                          scanResult.flagged.total &&
                           scanResult.flagged.total > 0)) && (
                         <p className="mt-1 font-medium">
                           These posts have been marked for review in the
@@ -739,36 +643,6 @@ export default function Page() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Moderation Activity Log */}
-            {moderationLogs.length > 0 && (
-              <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700">
-                    Moderation Activity Log
-                  </h3>
-                </div>
-                <div className="max-h-36 overflow-y-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                      {moderationLogs.map((log, index) => (
-                        <tr
-                          key={index}
-                          className={index === 0 ? "bg-blue-50" : ""}
-                        >
-                          <td className="px-4 py-2 whitespace-nowrap font-medium text-gray-900">
-                            {log.timestamp.toLocaleTimeString()}
-                          </td>
-                          <td className="px-4 py-2 whitespace-normal text-gray-700">
-                            {log.message}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             )}
           </div>
@@ -857,10 +731,12 @@ export default function Page() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <img
+                <Image
                   src="/globe.svg"
                   alt="No posts"
-                  className="w-24 h-24 mb-6 opacity-60"
+                  width={96}
+                  height={96}
+                  className="mb-6 opacity-60"
                 />
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">
                   No posts available
@@ -911,10 +787,12 @@ export default function Page() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <img
+                <Image
                   src="/globe.svg"
                   alt="No posts"
-                  className="w-24 h-24 mb-6 opacity-60"
+                  width={96}
+                  height={96}
+                  className="mb-6 opacity-60"
                 />
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">
                   No flagged content
@@ -967,10 +845,12 @@ export default function Page() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <img
+                <Image
                   src="/globe.svg"
                   alt="No posts"
-                  className="w-24 h-24 mb-6 opacity-60"
+                  width={96}
+                  height={96}
+                  className="mb-6 opacity-60"
                 />
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">
                   No posts to moderate

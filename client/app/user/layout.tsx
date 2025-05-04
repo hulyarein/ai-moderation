@@ -1,6 +1,5 @@
 "use client";
 import { useAuth } from "@/hooks/useAuth";
-import { useSocket } from "@/hooks/useSocket";
 import React from "react";
 
 export default function UserLayout({

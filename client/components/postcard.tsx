@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, User, Shield } from "lucide-react";
 import { generateRandomUsername } from "@/utils/usernameGenerator";
+import Image from "next/image";
 
 type PostCardProps = {
   file: string;
@@ -64,10 +65,12 @@ const PostCard: React.FC<PostCardProps> = ({
           <div className="flex items-center space-x-2">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 overflow-hidden">
               {profile ? (
-                <img
+                <Image
                   src={profile}
                   alt={`${username}'s profile`}
                   className="h-full w-full object-cover"
+                  width={32}
+                  height={32}
                 />
               ) : (
                 <>
@@ -93,13 +96,15 @@ const PostCard: React.FC<PostCardProps> = ({
         <div className="relative">
           {type === "image" ? (
             <div className="relative bg-gray-100 aspect-square flex justify-center items-center">
-              <img
+              <Image
                 src={file}
                 alt="User post"
                 className={`max-w-full max-h-full object-contain ${
                   reviewed ? "opacity-30" : ""
                 }`}
-                loading="lazy"
+                width={400}
+                height={400}
+                priority={isNew}
               />
               <div className="absolute bottom-0 left-0 right-0 h-8 sm:h-12 bg-gradient-to-t from-black/40 to-transparent"></div>
             </div>
