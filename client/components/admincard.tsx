@@ -1,13 +1,7 @@
 import React from "react";
-import {
-  AlertTriangle,
-  Check,
-  X,
-  Image,
-  FileText,
-  User,
-  Shield,
-} from "lucide-react";
+import { AlertTriangle, Check, X, FileText, User, Shield } from "lucide-react";
+import Image from "next/image";
+import { Image as ImageIcon } from "lucide-react";
 
 type AdminPostCardProps = {
   file: string;
@@ -46,7 +40,7 @@ const classificationConfig: Record<
   Image: {
     bgColor: "bg-purple-100",
     textColor: "text-purple-800",
-    icon: <Image size={16} className="text-purple-600" />,
+    icon: <ImageIcon size={16} className="text-purple-600" />,
   },
   "Text Content": {
     bgColor: "bg-gray-100",
@@ -92,7 +86,7 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
         <div className="text-xs text-gray-500 font-medium flex items-center">
           {type === "image" ? (
             <>
-              <Image size={14} className="mr-1" />
+              <ImageIcon size={14} className="mr-1" />
               <span>Image</span>
             </>
           ) : (
@@ -109,10 +103,12 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
         {username && (
           <div className="flex items-center space-x-2">
             {profilePicture ? (
-              <img
+              <Image
                 src={profilePicture}
-                alt={username}
+                alt={`${username}'s profile`}
                 className="h-6 w-6 rounded-full object-cover"
+                width={24}
+                height={24}
               />
             ) : (
               <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
@@ -148,10 +144,12 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
       <div className="p-0">
         {type === "image" ? (
           <div className="relative bg-gray-100 aspect-square flex justify-center items-center">
-            <img
+            <Image
               src={file}
               alt="Post content"
               className="max-w-full max-h-full object-contain"
+              width={300}
+              height={300}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
 

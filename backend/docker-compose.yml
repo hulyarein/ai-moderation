@@ -1,0 +1,16 @@
+version: '3'
+services:
+  ai-moderation-backend:
+    ports:
+      - "8002:8002"  # Expose the Flask app port to the host
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app  # Mount the current directory to /app inside the container
+    networks:
+      - ai-moderation-backend
+
+networks:
+  ai-moderation-backend:
+    driver: bridge

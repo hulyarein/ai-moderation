@@ -4,10 +4,16 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactStrictMode: true,
   // swcMinify is removed as it's now the default in Next.js 15+
-  
+
   // Configure proper Turbopack support
   experimental: {
-    turbo: {}
+    turbo: {},
+  },
+
+  images: {
+    remotePatterns: [
+      new URL("https://aliac-ai-moderation-backend.wetooa.me/**"),
+    ],
   },
 
   // Ensure proper handling of the Socket.IO endpoints

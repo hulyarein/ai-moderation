@@ -5,8 +5,9 @@ import { createPost, getApprovedPosts } from "@/lib/database";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { RefreshCw, Camera } from "lucide-react";
+import Image from "next/image";
 
 export default function Page() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,9 +30,26 @@ export default function Page() {
     signInAnonymously,
     refreshUsername,
     refreshProfilePicture,
-    loading: authLoading,
   } = useAuth();
   const { socket, isConnected, emitNewPost } = useSocket("USER");
+
+  // Helper function to refetch approved posts - wrapped in useCallback
+  const fetchApprovedPosts = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data } = await getApprovedPosts();
+      if (data) {
+        const sortedPosts = [...data].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setAllPosts(sortedPosts);
+      }
+    } catch (err) {
+      console.error("Error fetching approved posts:", err);
+    }
+  }, [user]);
 
   // Handle anonymous authentication on page load
   useEffect(() => {
@@ -51,11 +69,9 @@ export default function Page() {
 
       try {
         // Load only approved posts from the database
-        const { data, error } = await getApprovedPosts();
+        const { data } = await getApprovedPosts();
 
-        if (error) {
-          console.error("Error fetching posts:", error);
-        } else if (data) {
+        if (data) {
           // Sort posts by createdAt date with newest first
           const sortedPosts = [...data].sort(
             (a, b) =>
@@ -63,8 +79,8 @@ export default function Page() {
           );
           setAllPosts(sortedPosts);
         }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
+      } catch (err) {
+        console.error("Error fetching posts:", err);
       } finally {
         setIsLoading(false);
       }
@@ -137,25 +153,7 @@ export default function Page() {
       socket.off(SOCKET_EVENTS.POST_APPROVED);
       socket.off(SOCKET_EVENTS.POST_REJECTED);
     };
-  }, [socket, user, allPosts]);
-
-  // Helper function to refetch approved posts
-  const fetchApprovedPosts = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await getApprovedPosts();
-      if (!error && data) {
-        const sortedPosts = [...data].sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setAllPosts(sortedPosts);
-      }
-    } catch (error) {
-      console.error("Error fetching approved posts:", error);
-    }
-  };
+  }, [socket, user, allPosts, fetchApprovedPosts]);
 
   // Clear the new post flag after animation completes
   useEffect(() => {
@@ -181,7 +179,7 @@ export default function Page() {
     } catch (error) {
       setConfirmationMessage({
         type: "error",
-        message: "Failed to update username",
+        message: error + "Failed to update username",
       });
       setTimeout(() => setConfirmationMessage(null), 3000);
     } finally {
@@ -199,10 +197,10 @@ export default function Page() {
         message: "Profile picture updated!",
       });
       setTimeout(() => setConfirmationMessage(null), 3000);
-    } catch (error) {
+    } catch (err) {
       setConfirmationMessage({
         type: "error",
-        message: "Failed to update profile picture",
+        message: err + "Failed to update profile picture",
       });
       setTimeout(() => setConfirmationMessage(null), 3000);
     } finally {
@@ -245,8 +243,8 @@ export default function Page() {
         emitNewPost(data);
         console.log("New post emitted via WebSocket:", data.id);
       }
-    } catch (error) {
-      console.error("Error creating post:", error);
+    } catch (err) {
+      console.error("Error creating post:", err);
     }
   };
 
@@ -284,10 +282,12 @@ export default function Page() {
             <div className="mb-3 md:mb-4 relative">
               <div className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-full bg-white p-1 shadow-md overflow-hidden">
                 {profilePicture ? (
-                  <img
+                  <Image
                     src={profilePicture}
                     alt={`${username}'s profile`}
                     className="h-full w-full object-cover rounded-full"
+                    width={96}
+                    height={96}
                   />
                 ) : (
                   <div className="h-full w-full rounded-full bg-gray-200 flex items-center justify-center">
@@ -410,10 +410,12 @@ export default function Page() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto text-gray-500 p-4 sm:p-8 rounded-xl bg-gray-50 border border-gray-100 mt-4 sm:mt-8">
-              <img
+              <Image
                 src="/file.svg"
                 alt="No posts"
-                className="w-16 sm:w-20 h-16 sm:h-20 mb-3 sm:mb-4 opacity-50"
+                width={80}
+                height={80}
+                className="mb-3 sm:mb-4 opacity-50"
               />
               <p className="text-base sm:text-lg font-medium text-center">
                 No posts available. Be the first to create a post!

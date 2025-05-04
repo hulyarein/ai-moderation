@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Paperclip, X, Image, Type, Loader2 } from "lucide-react";
+import { Paperclip, X, Loader2 } from "lucide-react";
+import { Image as ImageIcon, Type } from "lucide-react";
+import Image from "next/image";
 
 // Adding character limit constant
 const CHARACTER_LIMIT = 128;
@@ -121,8 +123,10 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
           // Then submit the post with the image URL
           onSubmit({ file: imageUrl, type: "image", reviewed: false });
           resetAndClose();
-        } catch (error: any) {
-          setUploadError(error.message || "Failed to upload image");
+        } catch (error: Error | unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to upload image";
+          setUploadError(errorMessage);
           setIsSubmitting(false);
         }
       }
@@ -185,7 +189,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
             onClick={() => setActiveTab("image")}
             disabled={isSubmitting}
           >
-            <Image size={18} />
+            <ImageIcon size={18} />
             <span>Image Post</span>
           </button>
         </div>
@@ -249,10 +253,12 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
               </label>
             ) : (
               <div className="relative rounded-xl overflow-hidden">
-                <img
+                <Image
                   src={preview || ""}
-                  alt="Preview"
+                  alt="Image preview"
                   className="w-full h-auto aspect-square object-contain bg-gray-100"
+                  width={400}
+                  height={400}
                 />
                 <button
                   onClick={handleRemoveFile}
