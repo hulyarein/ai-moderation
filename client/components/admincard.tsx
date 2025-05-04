@@ -14,6 +14,7 @@ type AdminPostCardProps = {
   type: "text" | "image";
   classification: string;
   username?: string;
+  profilePicture?: string; // Add profile picture prop
   hideActions?: boolean;
   reviewed?: boolean;
   approved?: boolean;
@@ -66,6 +67,7 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
   type,
   classification,
   username,
+  profilePicture,
   hideActions = false,
   reviewed = false,
   approved = true,
@@ -106,9 +108,17 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
       <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
         {username && (
           <div className="flex items-center space-x-2">
-            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-              <User size={12} />
-            </div>
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt={username}
+                className="h-6 w-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <User size={12} />
+              </div>
+            )}
             <span className="text-xs font-medium text-gray-700">
               @{username}
             </span>

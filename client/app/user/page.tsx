@@ -1,11 +1,12 @@
 "use client";
 import PostCard from "@/components/postcard";
 import PostModal from "@/components/postmodal";
-import { createPost, getUserPosts, getApprovedPosts } from "@/lib/database";
+import { createPost, getApprovedPosts } from "@/lib/database";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
 import React, { useState, useEffect, useRef } from "react";
+import { RefreshCw, Camera } from "lucide-react";
 
 export default function Page() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -13,9 +14,18 @@ export default function Page() {
     []
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshingProfile, setRefreshingProfile] = useState(false);
   const newPostIds = useRef<Set<string>>(new Set());
 
-  const { user, username, signInAnonymously, loading: authLoading } = useAuth();
+  const {
+    user,
+    username,
+    profilePicture,
+    signInAnonymously,
+    refreshUsername,
+    refreshProfilePicture,
+    loading: authLoading,
+  } = useAuth();
   const { socket, isConnected, emitNewPost } = useSocket("USER");
 
   // Handle anonymous authentication on page load
@@ -156,6 +166,13 @@ export default function Page() {
     }
   }, [allPosts]);
 
+  // Handle profile picture refresh
+  const handleRefreshProfilePicture = async () => {
+    setRefreshingProfile(true);
+    await refreshProfilePicture();
+    setRefreshingProfile(false);
+  };
+
   const handleAddPost = async (newPostData: {
     file: string;
     type: "image" | "text";
@@ -164,12 +181,13 @@ export default function Page() {
     if (!user) return;
 
     try {
-      // Prepare post data with username
+      // Prepare post data with username and profile picture
       const postData = {
         ...newPostData,
         userId: user.id,
         createdAt: new Date().toISOString(),
         username: username || undefined, // Include the randomly generated username
+        profile: profilePicture || undefined, // Include the session profile picture
         approved: true, // Default to approved
       };
 
@@ -195,97 +213,150 @@ export default function Page() {
     }
   };
 
-  if (authLoading || isLoading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center h-full w-full">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-900"></div>
-          <p className="text-lg font-medium text-gray-600">Loading...</p>
+          <p className="text-lg font-medium text-gray-600">Loading posts...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row w-full transition-all duration-300">
+    <>
       <PostModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleAddPost}
       />
+
+      {/* Sidebar - First grid cell (col-span-1 on large screens) */}
       <div
-        className="w-full lg:w-2/5 h-64 lg:h-screen flex flex-col items-center border-0 rounded-none lg:rounded-tr-3xl lg:rounded-br-3xl p-8 lg:p-12 justify-between bg-cover bg-center bg-no-repeat shadow-lg transition-all duration-300 ease-in-out"
+        className="row-span-1 lg:row-span-full min-h-[320px] md:min-h-[380px] lg:h-screen flex flex-col items-center border-0 lg:border-r p-6 sm:p-8 lg:p-12 justify-between bg-cover bg-center bg-no-repeat shadow-lg"
         style={{
           backgroundImage:
             "linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('https://i.pinimg.com/736x/b3/52/70/b35270039cd08b7aa332a3e95d9953af.jpg')",
           backgroundPosition: "center",
         }}
       >
-        <div className="w-full flex flex-col items-center space-y-4">
-          <h1 className="text-white font-bold text-3xl lg:text-4xl text-center drop-shadow-md">
-            Welcome, {username || "User"}!
-          </h1>
-          <p className="text-white text-center text-sm md:text-base opacity-90 max-w-md">
+        <div className="w-full flex flex-col items-center space-y-4 md:space-y-6">
+          <div className="flex flex-col items-center">
+            {/* Profile Picture */}
+            <div className="mb-3 md:mb-4 relative">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 rounded-full bg-white p-1 shadow-md overflow-hidden">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt={`${username}'s profile`}
+                    className="h-full w-full object-cover rounded-full"
+                  />
+                ) : (
+                  <div className="h-full w-full rounded-full bg-gray-200 flex items-center justify-center">
+                    <Camera size={24} className="text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleRefreshProfilePicture}
+                disabled={refreshingProfile}
+                className="absolute bottom-0 right-0 h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-red-900 text-white flex items-center justify-center shadow-md hover:bg-red-800 transition-colors"
+                title="Change profile picture"
+              >
+                {refreshingProfile ? (
+                  <div className="animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-white rounded-full border-t-transparent" />
+                ) : (
+                  <>
+                    <RefreshCw size={14} className="sm:hidden" />
+                    <RefreshCw size={16} className="hidden sm:block" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            <h1 className="text-white font-bold text-2xl sm:text-3xl lg:text-4xl text-center drop-shadow-md">
+              Welcome, {username || "User"}!
+            </h1>
+            <button
+              onClick={() => refreshUsername()}
+              className="mt-2 text-white text-xs sm:text-sm bg-red-900 bg-opacity-90 px-2 sm:px-3 py-1 rounded-full hover:bg-opacity-100 transition-all duration-300 flex items-center"
+            >
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+              Refresh Username
+            </button>
+          </div>
+          <p className="text-white text-center text-xs sm:text-sm md:text-base opacity-90 max-w-md">
             Share your thoughts or images with the community. All posts are
             moderated for a safe experience.
           </p>
-          <div className="mt-2 bg-black bg-opacity-30 px-4 py-2 rounded-full">
+          <div className="mt-1 sm:mt-2 bg-black bg-opacity-30 px-3 sm:px-4 py-1 sm:py-2 rounded-full">
             {isConnected ? (
-              <span className="flex items-center text-white">
-                <span className="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              <span className="flex items-center text-white text-xs sm:text-sm">
+                <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 bg-green-500 rounded-full mr-1.5 sm:mr-2 animate-pulse"></span>
                 Connected
               </span>
             ) : (
-              <span className="flex items-center text-white">
-                <span className="h-2 w-2 bg-red-500 rounded-full mr-2"></span>
+              <span className="flex items-center text-white text-xs sm:text-sm">
+                <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 bg-red-500 rounded-full mr-1.5 sm:mr-2"></span>
                 Connecting...
               </span>
             )}
           </div>
         </div>
         <button
-          className="w-full sm:w-2/3 h-14 rounded-lg border-2 border-white bg-white text-red-900 font-bold text-xl lg:text-2xl 
+          className="w-full max-w-xs sm:max-w-sm h-10 sm:h-12 md:h-14 rounded-lg border-2 border-white bg-white text-red-900 font-bold text-lg sm:text-xl lg:text-2xl 
                      hover:bg-transparent hover:text-white transition-all duration-300 ease-in-out shadow-md transform hover:scale-105 active:scale-95"
           onClick={() => setModalOpen(true)}
+          data-create-post="true"
         >
           Create post
         </button>
       </div>
-      <div className="flex flex-col gap-6 p-6 sm:p-8 items-center w-full lg:w-3/5 bg-white h-[calc(100vh-16rem)] lg:h-screen overflow-y-auto">
-        {allPosts.length > 0 ? (
-          <div className="w-full max-w-xl space-y-6 pb-6">
-            {allPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                file={post.file}
-                type={post.type}
-                reviewed={post.reviewed}
-                approved={post.approved}
-                isOwner={post.userId === user?.id}
-                username={post.userId === user?.id ? username : post.username}
-                isNew={post.isNew}
+
+      {/* Content area - Second grid cell (scrollable) */}
+      <div className="row-span-1 lg:row-span-full h-screen lg:overflow-y-auto bg-white">
+        <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 md:p-8 items-center w-full">
+          {allPosts.length > 0 ? (
+            <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl mx-auto space-y-4 sm:space-y-6 pb-6 pt-2 sm:pt-4">
+              {allPosts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  file={post.file}
+                  type={post.type}
+                  reviewed={post.reviewed}
+                  approved={post.approved}
+                  isOwner={post.userId === user?.id}
+                  username={post.userId === user?.id ? username : post.username}
+                  isNew={post.isNew}
+                  profile={
+                    post.userId === user?.id
+                      ? profilePicture || undefined
+                      : post.profile
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto text-gray-500 p-4 sm:p-8 rounded-xl bg-gray-50 border border-gray-100 mt-4 sm:mt-8">
+              <img
+                src="/file.svg"
+                alt="No posts"
+                className="w-16 sm:w-20 h-16 sm:h-20 mb-3 sm:mb-4 opacity-50"
               />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full max-w-xl text-gray-500 p-8 rounded-xl bg-gray-50 border border-gray-100">
-            <img
-              src="/file.svg"
-              alt="No posts"
-              className="w-20 h-20 mb-4 opacity-50"
-            />
-            <p className="text-lg font-medium text-center">
-              No posts available. Be the first to create a post!
-            </p>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="mt-4 px-6 py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors"
-            >
-              Create Now
-            </button>
-          </div>
-        )}
+              <p className="text-base sm:text-lg font-medium text-center">
+                No posts available. Be the first to create a post!
+              </p>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="mt-3 sm:mt-4 px-4 sm:px-6 py-1.5 sm:py-2 bg-red-900 text-white rounded-lg hover:bg-red-800 transition-colors text-sm sm:text-base"
+              >
+                Create Now
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

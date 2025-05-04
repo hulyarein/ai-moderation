@@ -110,3 +110,10 @@ export function saveUsername(username: string): void {
     localStorage.setItem("randomUsername", username);
   }
 }
+
+// Function to refresh the username with a new randomly generated one
+export function refreshUsername(): string {
+  const newUsername = generateRandomUsername();
+  saveUsername(newUsername);
+  return newUsername;
+}

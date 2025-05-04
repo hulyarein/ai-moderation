@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { Paperclip, X, Image, Type, Loader2 } from "lucide-react";
 
+// Adding character limit constant
+const CHARACTER_LIMIT = 128;
+
 type PostModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -66,7 +69,11 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const handlePost = async () => {
     setIsSubmitting(true);
     try {
-      if (activeTab === "text" && text.trim()) {
+      if (
+        activeTab === "text" &&
+        text.trim() &&
+        text.length <= CHARACTER_LIMIT
+      ) {
         onSubmit({ file: text.trim(), type: "text", reviewed: false });
         resetAndClose();
       } else if (activeTab === "image" && selectedFile) {
@@ -141,14 +148,34 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
         {activeTab === "text" ? (
           <div className="mb-6">
             <textarea
-              className="w-full h-36 p-4 border border-gray-300 rounded-xl text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              placeholder="What's on your mind?"
+              className={`w-full h-36 p-4 border rounded-xl text-gray-700 resize-none focus:outline-none focus:ring-2 transition-all ${
+                text.length > CHARACTER_LIMIT
+                  ? "border-red-500 focus:ring-red-500"
+                  : text.length > CHARACTER_LIMIT * 0.8
+                  ? "border-yellow-400 focus:ring-yellow-400"
+                  : "border-gray-300 focus:ring-red-500"
+              }`}
+              placeholder={`What's on your mind? (${CHARACTER_LIMIT} characters max)`}
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={isSubmitting}
+              maxLength={CHARACTER_LIMIT * 1.1} // Allow slightly over for better UX but still prevent submission
             />
-            <div className="mt-2 text-right text-xs text-gray-500">
-              {text.length} characters
+            <div
+              className={`mt-2 text-right text-sm flex justify-end items-center ${
+                text.length > CHARACTER_LIMIT
+                  ? "text-red-600 font-medium"
+                  : text.length > CHARACTER_LIMIT * 0.8
+                  ? "text-yellow-600"
+                  : "text-gray-500"
+              }`}
+            >
+              <span>{text.length}</span>
+              <span className="mx-1">/</span>
+              <span>{CHARACTER_LIMIT}</span>
+              {text.length > CHARACTER_LIMIT && (
+                <span className="ml-2 text-xs">Character limit exceeded</span>
+              )}
             </div>
           </div>
         ) : (
@@ -203,7 +230,8 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
           className="w-full bg-red-700 text-white py-3 rounded-xl hover:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed font-medium shadow-sm transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
           disabled={
             isSubmitting ||
-            (activeTab === "text" && !text.trim()) ||
+            (activeTab === "text" &&
+              (!text.trim() || text.length > CHARACTER_LIMIT)) ||
             (activeTab === "image" && !selectedFile)
           }
         >

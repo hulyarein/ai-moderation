@@ -13,7 +13,14 @@ import {
   generateRandomUsername,
   getSavedUsername,
   saveUsername,
+  refreshUsername as refreshRandomUsername,
 } from "@/utils/usernameGenerator";
+import {
+  getSavedProfilePicture,
+  saveProfilePicture,
+  fetchRandomProfilePicture,
+  refreshProfilePicture,
+} from "@/utils/profilePictureSelector";
 
 export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -21,6 +28,7 @@ export const useAuth = () => {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -46,6 +54,21 @@ export const useAuth = () => {
             saveUsername(newUsername);
             setUsername(newUsername);
           }
+
+          // Get existing profile picture or fetch a new one
+          const savedProfilePicture = getSavedProfilePicture();
+          if (savedProfilePicture) {
+            setProfilePicture(savedProfilePicture);
+          } else {
+            try {
+              const newProfilePicture = await fetchRandomProfilePicture();
+              saveProfilePicture(newProfilePicture);
+              setProfilePicture(newProfilePicture);
+            } catch (error) {
+              console.error("Error fetching profile picture:", error);
+              setProfilePicture("/profiles/default_profile.jpeg");
+            }
+          }
         }
       }
 
@@ -64,7 +87,7 @@ export const useAuth = () => {
         } else {
           setIsAdmin(false);
 
-          // If user just signed in, check for username or generate new one
+          // If user just signed in, check for username/profile or generate new ones
           if (event === "SIGNED_IN") {
             const savedUsername = getSavedUsername();
             if (savedUsername) {
@@ -74,8 +97,23 @@ export const useAuth = () => {
               saveUsername(newUsername);
               setUsername(newUsername);
             }
+
+            const savedProfilePicture = getSavedProfilePicture();
+            if (savedProfilePicture) {
+              setProfilePicture(savedProfilePicture);
+            } else {
+              try {
+                const newProfilePicture = await fetchRandomProfilePicture();
+                saveProfilePicture(newProfilePicture);
+                setProfilePicture(newProfilePicture);
+              } catch (error) {
+                console.error("Error fetching profile picture:", error);
+                setProfilePicture("/profiles/default_profile.jpeg");
+              }
+            }
           } else if (event === "SIGNED_OUT") {
             setUsername(null);
+            setProfilePicture(null);
           }
         }
       }
@@ -103,29 +141,45 @@ export const useAuth = () => {
       const newUsername = generateRandomUsername();
       saveUsername(newUsername);
       setUsername(newUsername);
+
+      // Generate and save a random profile picture
+      try {
+        const newProfilePicture = await fetchRandomProfilePicture();
+        saveProfilePicture(newProfilePicture);
+        setProfilePicture(newProfilePicture);
+      } catch (error) {
+        console.error("Error fetching profile picture:", error);
+        setProfilePicture("/profiles/default_profile.jpeg");
+      }
     }
 
     setLoading(false);
     return { data, error };
   };
 
-  const handleSignInWithEmail = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
+  // Function to refresh the current username
+  const handleRefreshUsername = () => {
+    if (session && !isAdmin) {
+      const newUsername = refreshRandomUsername();
+      setUsername(newUsername);
+      return newUsername;
+    }
+    return null;
+  };
 
-    const { data, error } = await signInWithEmail(email, password);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setSession(data.session);
-      if (email.endsWith("@admin.com")) {
-        setIsAdmin(true);
+  // Function to refresh the current profile picture
+  const handleRefreshProfilePicture = async () => {
+    if (session && !isAdmin) {
+      try {
+        const newProfilePicture = await refreshProfilePicture();
+        setProfilePicture(newProfilePicture);
+        return newProfilePicture;
+      } catch (error) {
+        console.error("Error refreshing profile picture:", error);
+        return null;
       }
     }
-
-    setLoading(false);
-    return { data, error };
+    return null;
   };
 
   const handleSignOut = async () => {
@@ -140,14 +194,61 @@ export const useAuth = () => {
       setSession(null);
       setIsAdmin(false);
       setUsername(null);
-      // Clear the username from local storage on sign out
+      setProfilePicture(null);
+      // Clear the username and profile picture from local storage on sign out
       if (typeof window !== "undefined") {
         localStorage.removeItem("randomUsername");
+        localStorage.removeItem("profilePicture");
       }
     }
 
     setLoading(false);
     return { error };
+  };
+
+  const handleSignInWithEmail = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+
+    const { data, error } = await signInWithEmail(email, password);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSession(data.session);
+      // Check if user is admin
+      if (data.session?.user.email?.endsWith("@admin.com")) {
+        setIsAdmin(true);
+      } else {
+        // For regular users, try to get existing username or generate a new one
+        const savedUsername = getSavedUsername();
+        if (savedUsername) {
+          setUsername(savedUsername);
+        } else {
+          const newUsername = generateRandomUsername();
+          saveUsername(newUsername);
+          setUsername(newUsername);
+        }
+
+        // Get existing profile picture or fetch a new one
+        const savedProfilePicture = getSavedProfilePicture();
+        if (savedProfilePicture) {
+          setProfilePicture(savedProfilePicture);
+        } else {
+          try {
+            const newProfilePicture = await fetchRandomProfilePicture();
+            saveProfilePicture(newProfilePicture);
+            setProfilePicture(newProfilePicture);
+          } catch (error) {
+            console.error("Error fetching profile picture:", error);
+            setProfilePicture("/profiles/default_profile.jpeg");
+          }
+        }
+      }
+    }
+
+    setLoading(false);
+    return { data, error };
   };
 
   return {
@@ -157,8 +258,11 @@ export const useAuth = () => {
     loading,
     error,
     username,
+    profilePicture,
     signInAnonymously: handleSignInAnonymously,
     signInWithEmail: handleSignInWithEmail,
     signOut: handleSignOut,
+    refreshUsername: handleRefreshUsername,
+    refreshProfilePicture: handleRefreshProfilePicture,
   };
 };
