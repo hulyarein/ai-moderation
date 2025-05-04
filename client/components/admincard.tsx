@@ -1,63 +1,219 @@
 import React from "react";
+import {
+  AlertTriangle,
+  Check,
+  X,
+  Image,
+  FileText,
+  User,
+  Shield,
+} from "lucide-react";
 
 type AdminPostCardProps = {
   file: string;
   type: "text" | "image";
-  classification: "Fake Image" | "Toxic Content" | "Explicit Content";
+  classification: string;
+  username?: string;
+  hideActions?: boolean;
+  reviewed?: boolean;
+  approved?: boolean;
   onRemove: () => void;
   onMarkFalsePositive: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
 };
 
-const classificationColors: Record<string, string> = {
-  "Fake Image": "bg-red-100 text-red-800",
-  "Toxic Content": "bg-blue-100 text-blue-800",
-  "Explicit Content": "bg-amber-100 text-amber-800",
+const classificationConfig: Record<
+  string,
+  { bgColor: string; textColor: string; icon: React.ReactNode }
+> = {
+  "Fake Image": {
+    bgColor: "bg-red-100",
+    textColor: "text-red-800",
+    icon: <AlertTriangle size={16} className="text-red-600" />,
+  },
+  "Toxic Content": {
+    bgColor: "bg-blue-100",
+    textColor: "text-blue-800",
+    icon: <AlertTriangle size={16} className="text-blue-600" />,
+  },
+  "Explicit Content": {
+    bgColor: "bg-amber-100",
+    textColor: "text-amber-800",
+    icon: <AlertTriangle size={16} className="text-amber-600" />,
+  },
+  Image: {
+    bgColor: "bg-purple-100",
+    textColor: "text-purple-800",
+    icon: <Image size={16} className="text-purple-600" />,
+  },
+  "Text Content": {
+    bgColor: "bg-gray-100",
+    textColor: "text-gray-800",
+    icon: <FileText size={16} className="text-gray-600" />,
+  },
+};
+
+// Default config as fallback
+const defaultConfig = {
+  bgColor: "bg-gray-100",
+  textColor: "text-gray-800",
+  icon: <AlertTriangle size={16} className="text-gray-600" />,
 };
 
 const AdminPostCard: React.FC<AdminPostCardProps> = ({
   file,
   type,
   classification,
+  username,
+  hideActions = false,
+  reviewed = false,
+  approved = true,
   onRemove,
   onMarkFalsePositive,
+  onApprove,
+  onReject,
 }) => {
+  // Use the config for the classification, or fall back to default if not found
+  const config = classificationConfig[classification] || defaultConfig;
+
   return (
-    <div className="w-full bg-white flex flex-col items-center">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-4 flex flex-col gap-2 border border-gray-200">
-        {/* Classification Tag */}
+    <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 flex flex-col transition-all duration-200 hover:shadow-lg">
+      {/* Header with Classification Tag */}
+      <div className="px-4 py-3 border-b border-gray-100 flex justify-between items-center">
         <div
-          className={`text-s font-semibold px-4 py-1 rounded-full self-start ${classificationColors[classification]}`}
+          className={`font-medium text-sm px-3 py-1 rounded-full flex items-center gap-1.5 ${config.bgColor} ${config.textColor}`}
         >
-          {classification}
+          {config.icon}
+          <span>{classification}</span>
         </div>
-
-        {/* Post Content */}
-        {type === "image" ? (
-          <img
-            src={file}
-            alt="Post"
-            className="w-full h-48 object-cover rounded-md m-0"
-          />
-        ) : (
-          <p className="text-gray-800">{file}</p>
-        )}
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2 mt-auto">
-          <button
-            onClick={onRemove}
-            className="text-white bg-gray-500 hover:bg-gray-600 px-3 py-1 rounded text-sm"
-          >
-            Remove
-          </button>
-          <button
-            onClick={onMarkFalsePositive}
-            className="text-white border bg-green-600 hover:bg-green-800 px-3 py-1 rounded text-sm"
-          >
-            False Positive
-          </button>
+        <div className="text-xs text-gray-500 font-medium flex items-center">
+          {type === "image" ? (
+            <>
+              <Image size={14} className="mr-1" />
+              <span>Image</span>
+            </>
+          ) : (
+            <>
+              <FileText size={14} className="mr-1" />
+              <span>Text</span>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Status indicators */}
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+        {username && (
+          <div className="flex items-center space-x-2">
+            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              <User size={12} />
+            </div>
+            <span className="text-xs font-medium text-gray-700">
+              @{username}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center">
+          {reviewed ? (
+            <span className="text-xs font-medium bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center">
+              <AlertTriangle size={10} className="mr-1" />
+              Under Review
+            </span>
+          ) : approved ? (
+            <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center">
+              <Shield size={10} className="mr-1" />
+              Approved
+            </span>
+          ) : (
+            <span className="text-xs font-medium bg-red-100 text-red-800 px-2 py-0.5 rounded-full flex items-center">
+              <X size={10} className="mr-1" />
+              Rejected
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Post Content */}
+      <div className="p-0">
+        {type === "image" ? (
+          <div className="relative">
+            <img
+              src={file}
+              alt="Post content"
+              className="w-full h-48 object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
+
+            {/* Review overlay */}
+            {reviewed && (
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                <AlertTriangle className="text-amber-400 h-6 w-6" />
+                <span className="text-white font-medium text-center text-sm px-4">
+                  Under Review
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 min-h-[100px] max-h-[200px] overflow-y-auto relative">
+            <p className="text-gray-800 text-sm">{file}</p>
+
+            {/* Review overlay for text */}
+            {reviewed && (
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                <AlertTriangle className="text-amber-400 h-6 w-6" />
+                <span className="text-white font-medium text-center text-sm px-4">
+                  Under Review
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      {!hideActions && (
+        <div className="p-3 bg-gray-50 flex justify-between items-center gap-2">
+          {reviewed ? (
+            <>
+              {/* Show Safe/Unsafe buttons for posts under review */}
+              <button
+                onClick={onReject}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <X size={16} />
+                <span>Unsafe</span>
+              </button>
+              <button
+                onClick={onApprove}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <Check size={16} />
+                <span>Safe</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Default actions */}
+              <button
+                onClick={onRemove}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <X size={16} />
+                <span>Remove</span>
+              </button>
+              <button
+                onClick={onMarkFalsePositive}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <Check size={16} />
+                <span>Approve</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Paperclip } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Paperclip, X, Image, Type, Loader2 } from "lucide-react";
 
 type PostModalProps = {
   isOpen: boolean;
@@ -17,6 +17,39 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [text, setText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  // Create a preview URL for the selected image
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreview(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setPreview(objectUrl);
+
+    // Free memory when this component is unmounted
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedFile]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener("keydown", handleEsc);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen) return null;
 
@@ -30,14 +63,21 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
     setSelectedFile(null);
   };
 
-  const handlePost = () => {
-    if (activeTab === "text" && text.trim()) {
-      onSubmit({ file: text.trim(), type: "text", reviewed: false });
-      resetAndClose();
-    } else if (activeTab === "image" && selectedFile) {
-      const imageUrl = URL.createObjectURL(selectedFile);
-      onSubmit({ file: imageUrl, type: "image", reviewed: false });
-      resetAndClose();
+  const handlePost = async () => {
+    setIsSubmitting(true);
+    try {
+      if (activeTab === "text" && text.trim()) {
+        onSubmit({ file: text.trim(), type: "text", reviewed: false });
+        resetAndClose();
+      } else if (activeTab === "image" && selectedFile) {
+        const imageUrl = URL.createObjectURL(selectedFile);
+        onSubmit({ file: imageUrl, type: "image", reviewed: false });
+        resetAndClose();
+      }
+    } catch (error) {
+      console.error("Error posting:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -45,91 +85,136 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
     setSelectedFile(null);
     setText("");
     setActiveTab("text");
+    setIsSubmitting(false);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
-        <button
-          className="absolute top-2 right-4 text-gray-500 hover:text-gray-700 text-xl"
-          onClick={onClose}
-        >
-          &times;
-        </button>
-
-        <h2 className="text-xl font-semibold mb-4 text-black">
-          Create New Post
-        </h2>
-
-        <div className="flex mb-4 border-b border-gray-300">
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+      <div
+        className="absolute inset-0 bg-black/60 transition-opacity"
+        onClick={isSubmitting ? undefined : onClose}
+      ></div>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative z-10 transition-all transform animate-fadeIn">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-2xl font-bold text-gray-800">Create New Post</h2>
           <button
-            className={`flex-1 py-2 text-center font-semibold ${
+            className="h-8 w-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+            onClick={onClose}
+            disabled={isSubmitting}
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex mb-6 border-b border-gray-200">
+          <button
+            className={`flex-1 py-3 text-center font-medium flex items-center justify-center gap-2 transition-all ${
               activeTab === "text"
-                ? "border-b-2 border-black text-black"
-                : "text-gray-500 hover:text-black"
+                ? "border-b-2 border-red-700 text-red-700"
+                : "text-gray-500 hover:text-gray-700"
             }`}
             onClick={() => setActiveTab("text")}
+            disabled={isSubmitting}
           >
-            Text
+            <Type size={18} />
+            <span>Text Post</span>
           </button>
           <button
-            className={`flex-1 py-2 text-center font-semibold ${
+            className={`flex-1 py-3 text-center font-medium flex items-center justify-center gap-2 transition-all ${
               activeTab === "image"
-                ? "border-b-2 border-black text-black"
-                : "text-gray-500 hover:text-black"
+                ? "border-b-2 border-red-700 text-red-700"
+                : "text-gray-500 hover:text-gray-700"
             }`}
             onClick={() => setActiveTab("image")}
+            disabled={isSubmitting}
           >
-            Image
+            <Image size={18} />
+            <span>Image Post</span>
           </button>
         </div>
 
         {/* Content */}
         {activeTab === "text" ? (
-          <textarea
-            className="w-full h-32 p-2 border rounded-lg text-black mb-4"
-            placeholder="What's on your mind?"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
+          <div className="mb-6">
+            <textarea
+              className="w-full h-36 p-4 border border-gray-300 rounded-xl text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              placeholder="What's on your mind?"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={isSubmitting}
+            />
+            <div className="mt-2 text-right text-xs text-gray-500">
+              {text.length} characters
+            </div>
+          </div>
         ) : (
-          <div className="relative mb-2 flex flex-col gap-2 justify-center">
-            <label className="flex flex-col gap-2 justify-center items-center h-32 cursor-pointer p-2 rounded-sm bg-gray-200 hover:bg-gray-300">
-              <Paperclip className="w-5 h-5 text-gray-700" />
-              <p className="text-gray-700 font-bold">Upload photo</p>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </label>
-            {selectedFile && (
-              <div className="mt-3 flex items-center justify-between bg-blue-100 p-2 rounded-md">
-                <p className="text-sm text-blue-700 truncate w-4/5">
-                  {selectedFile.name}
-                </p>
+          <div className="mb-6">
+            {!selectedFile ? (
+              <label className="flex flex-col gap-3 justify-center items-center h-36 cursor-pointer p-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-all">
+                <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Paperclip className="w-6 h-6 text-gray-500" />
+                </div>
+                <div className="text-center">
+                  <p className="text-gray-700 font-medium">
+                    Drop your image here, or browse
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Supports: JPG, PNG, GIF
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={isSubmitting}
+                />
+              </label>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden">
+                <img
+                  src={preview || ""}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-xl"
+                />
                 <button
                   onClick={handleRemoveFile}
-                  className="text-gray-400 hover:text-red-500 text-2xl"
+                  className="absolute top-2 right-2 h-8 w-8 flex items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                  disabled={isSubmitting}
+                  aria-label="Remove image"
                 >
-                  &times;
+                  <X size={16} />
                 </button>
+                <div className="mt-2 text-xs text-gray-500 pl-2">
+                  {selectedFile.name}
+                </div>
               </div>
             )}
           </div>
         )}
 
+        {/* Submit Button */}
         <button
           onClick={handlePost}
-          className="w-full bg-gray-800 text-white py-2 rounded-lg hover:bg-black "
+          className="w-full bg-red-700 text-white py-3 rounded-xl hover:bg-red-800 disabled:opacity-60 disabled:cursor-not-allowed font-medium shadow-sm transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center"
           disabled={
+            isSubmitting ||
             (activeTab === "text" && !text.trim()) ||
             (activeTab === "image" && !selectedFile)
           }
         >
-          Post
+          {isSubmitting ? (
+            <span className="flex items-center justify-center">
+              <Loader2 size={20} className="animate-spin mr-2" />
+              Posting...
+            </span>
+          ) : (
+            "Share Post"
+          )}
         </button>
       </div>
     </div>

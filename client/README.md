@@ -1,8 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Moderation Platform
 
-## Getting Started
+A Next.js application featuring real-time content moderation with Supabase authentication and WebSockets.
 
-First, run the development server:
+## Features
+
+- **User Page**: Anonymous users can create text and image posts
+- **Admin Dashboard**: Authenticated administrators can review and moderate posts
+- **Real-time Updates**: WebSocket integration for instant updates between users and admins
+- **Authentication**: Supabase authentication with anonymous sign-in for users and email/password for admins
+
+## Setup Instructions
+
+### 1. Supabase Setup
+
+1. Create a Supabase account at [https://supabase.com](https://supabase.com) and create a new project
+2. From your Supabase dashboard, get your project URL and API keys
+3. Copy the `.env.example` file to `.env.local` and update with your Supabase credentials:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+   ```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+### 3. Create Admin Account
+
+Use the provided script to create an admin account:
+
+```bash
+npx tsx scripts/create-admin.ts
+```
+
+Follow the prompts to create an admin user (recommended email: admin@admin.com).
+
+### 4. Start the Development Server
 
 ```bash
 npm run dev
@@ -10,27 +50,31 @@ npm run dev
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **User Access**: Navigate to `/user` to access the user interface where you can create posts anonymously
+- **Admin Access**: Navigate to `/login` to log in with your admin credentials, then access the admin dashboard at `/admin`
 
-## Learn More
+## How It Works
 
-To learn more about Next.js, take a look at the following resources:
+1. **Anonymous Authentication**: Regular users are automatically signed in anonymously when they visit the `/user` page
+2. **Real-time Communication**: WebSockets enable instant updates between users and administrators
+3. **Admin Authentication**: Administrators must log in with their credentials to access the moderation dashboard
+4. **Post Moderation**: Admins can remove posts or mark them as false positives, with real-time updates for users
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Technical Implementation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend**: Next.js app router, React, TypeScript, Tailwind CSS
+- **Authentication**: Supabase Auth with anonymous and email/password strategies
+- **Real-time**: Socket.IO for WebSocket communication between users and admins
+- **State Management**: React hooks for local state management
 
-## Deploy on Vercel
+## Production Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+For production deployment, follow the [Next.js deployment documentation](https://nextjs.org/docs/deployment).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+When deploying to production, ensure your environment variables are properly set in your hosting platform.
