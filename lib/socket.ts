@@ -10,6 +10,7 @@ export type Post = {
   userId?: string;
   username?: string;
   reviewed: boolean;
+  approved: boolean;
   createdAt: string;
 };
 
@@ -27,6 +28,8 @@ export enum SOCKET_EVENTS {
   NEW_POST = "new-post",
   POST_REMOVED = "post-removed",
   POST_REVIEWED = "post-reviewed",
+  POST_APPROVED = "post-approved",
+  POST_REJECTED = "post-rejected",
   POSTS_UPDATE = "posts-update",
   JOIN_ROOM = "join-room",
   LEAVE_ROOM = "leave-room",

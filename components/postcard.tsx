@@ -2,22 +2,24 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Clock, AlertCircle, User } from "lucide-react";
+import { Clock, AlertCircle, User, Shield } from "lucide-react";
 import { generateRandomUsername } from "@/utils/usernameGenerator";
 
 type PostCardProps = {
   file: string;
   type: "image" | "text";
   reviewed: boolean;
-  isOwner?: boolean; // Indicates if the post belongs to the user
-  username?: string | null; // Username for the post
-  isNew?: boolean; // For animation purposes
+  approved?: boolean; // Added approved field
+  isOwner?: boolean;
+  username?: string | null;
+  isNew?: boolean;
 };
 
 const PostCard: React.FC<PostCardProps> = ({
   file,
   type,
   reviewed,
+  approved = true, // Default to approved
   isOwner = false,
   username: providedUsername,
   isNew = false,
@@ -93,7 +95,7 @@ const PostCard: React.FC<PostCardProps> = ({
           </div>
         )}
 
-        {/* Review Status */}
+        {/* Review Status Overlay */}
         {reviewed && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2 transition-all duration-300">
             <AlertCircle className="text-amber-400 h-8 w-8" />
@@ -111,7 +113,15 @@ const PostCard: React.FC<PostCardProps> = ({
       {/* Card Footer */}
       <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
         <span>{new Date().toLocaleDateString()}</span>
-        <span>{type === "image" ? "Image Post" : "Text Post"}</span>
+        <div className="flex items-center">
+          {approved ? (
+            <span className="flex items-center text-green-600 mr-2">
+              <Shield size={12} className="mr-1" />
+              <span>Approved</span>
+            </span>
+          ) : null}
+          <span>{type === "image" ? "Image Post" : "Text Post"}</span>
+        </div>
       </div>
     </motion.div>
   );

@@ -1,14 +1,26 @@
 import React from "react";
-import { AlertTriangle, Check, X, Image, FileText, User } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  X,
+  Image,
+  FileText,
+  User,
+  Shield,
+} from "lucide-react";
 
 type AdminPostCardProps = {
   file: string;
   type: "text" | "image";
   classification: string;
   username?: string;
-  hideActions?: boolean; // Add prop to conditionally hide action buttons
+  hideActions?: boolean;
+  reviewed?: boolean;
+  approved?: boolean;
   onRemove: () => void;
   onMarkFalsePositive: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
 };
 
 const classificationConfig: Record<
@@ -54,9 +66,13 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
   type,
   classification,
   username,
-  hideActions = false, // Default to showing the actions
+  hideActions = false,
+  reviewed = false,
+  approved = true,
   onRemove,
   onMarkFalsePositive,
+  onApprove,
+  onReject,
 }) => {
   // Use the config for the classification, or fall back to default if not found
   const config = classificationConfig[classification] || defaultConfig;
@@ -86,15 +102,37 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
         </div>
       </div>
 
-      {/* User info section */}
-      {username && (
-        <div className="px-4 py-2 border-b border-gray-100 flex items-center space-x-2">
-          <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-            <User size={12} />
+      {/* Status indicators */}
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+        {username && (
+          <div className="flex items-center space-x-2">
+            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+              <User size={12} />
+            </div>
+            <span className="text-xs font-medium text-gray-700">
+              @{username}
+            </span>
           </div>
-          <span className="text-xs font-medium text-gray-700">@{username}</span>
+        )}
+        <div className="flex items-center">
+          {reviewed ? (
+            <span className="text-xs font-medium bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center">
+              <AlertTriangle size={10} className="mr-1" />
+              Under Review
+            </span>
+          ) : approved ? (
+            <span className="text-xs font-medium bg-green-100 text-green-800 px-2 py-0.5 rounded-full flex items-center">
+              <Shield size={10} className="mr-1" />
+              Approved
+            </span>
+          ) : (
+            <span className="text-xs font-medium bg-red-100 text-red-800 px-2 py-0.5 rounded-full flex items-center">
+              <X size={10} className="mr-1" />
+              Rejected
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Post Content */}
       <div className="p-0">
@@ -106,31 +144,74 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
               className="w-full h-48 object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
+
+            {/* Review overlay */}
+            {reviewed && (
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                <AlertTriangle className="text-amber-400 h-6 w-6" />
+                <span className="text-white font-medium text-center text-sm px-4">
+                  Under Review
+                </span>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="p-4 min-h-[100px] max-h-[200px] overflow-y-auto">
+          <div className="p-4 min-h-[100px] max-h-[200px] overflow-y-auto relative">
             <p className="text-gray-800 text-sm">{file}</p>
+
+            {/* Review overlay for text */}
+            {reviewed && (
+              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+                <AlertTriangle className="text-amber-400 h-6 w-6" />
+                <span className="text-white font-medium text-center text-sm px-4">
+                  Under Review
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Actions - Only show if hideActions is false */}
+      {/* Actions */}
       {!hideActions && (
         <div className="p-3 bg-gray-50 flex justify-between items-center gap-2">
-          <button
-            onClick={onRemove}
-            className="flex-1 flex items-center justify-center gap-1.5 text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <X size={16} />
-            <span>Remove</span>
-          </button>
-          <button
-            onClick={onMarkFalsePositive}
-            className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <Check size={16} />
-            <span>Approve</span>
-          </button>
+          {reviewed ? (
+            <>
+              {/* Show Safe/Unsafe buttons for posts under review */}
+              <button
+                onClick={onReject}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <X size={16} />
+                <span>Unsafe</span>
+              </button>
+              <button
+                onClick={onApprove}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <Check size={16} />
+                <span>Safe</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Default actions */}
+              <button
+                onClick={onRemove}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <X size={16} />
+                <span>Remove</span>
+              </button>
+              <button
+                onClick={onMarkFalsePositive}
+                className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <Check size={16} />
+                <span>Approve</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 import PostCard from "@/components/postcard";
 import PostModal from "@/components/postmodal";
-import { createPost, getUserPosts, getPosts } from "@/lib/database";
+import { createPost, getUserPosts, getApprovedPosts } from "@/lib/database";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
@@ -29,14 +29,14 @@ export default function Page() {
     initAuth();
   }, [user, signInAnonymously]);
 
-  // Fetch ALL posts from database when user is authenticated
+  // Fetch APPROVED posts from database when user is authenticated
   useEffect(() => {
     const fetchPosts = async () => {
       if (!user) return;
 
       try {
-        // Load ALL posts from the database
-        const { data, error } = await getPosts();
+        // Load only approved posts from the database
+        const { data, error } = await getApprovedPosts();
 
         if (error) {
           console.error("Error fetching posts:", error);
@@ -74,17 +74,42 @@ export default function Page() {
       );
     });
 
+    // Listen for post approval events
+    socket.on(SOCKET_EVENTS.POST_APPROVED, (postId: string) => {
+      console.log("Post approved notification received:", postId);
+      // If post is not already in the list, fetch it (or we could fetch all approved posts again)
+      if (!allPosts.some((post) => post.id === postId)) {
+        fetchApprovedPosts();
+      } else {
+        // Update existing post
+        setAllPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? { ...post, reviewed: false, approved: true }
+              : post
+          )
+        );
+      }
+    });
+
     // Listen for post removal events
     socket.on(SOCKET_EVENTS.POST_REMOVED, (postId: string) => {
       console.log("Post removed notification received:", postId);
       setAllPosts((prev) => prev.filter((post) => post.id !== postId));
     });
 
+    // Listen for post rejection events
+    socket.on(SOCKET_EVENTS.POST_REJECTED, (postId: string) => {
+      console.log("Post rejected notification received:", postId);
+      // Remove rejected posts from the user view
+      setAllPosts((prev) => prev.filter((post) => post.id !== postId));
+    });
+
     // Listen for new posts from other users
     socket.on(SOCKET_EVENTS.NEW_POST, (post: PostType) => {
       console.log("New post received via WebSocket:", post.id);
-      // Only add posts from other users (posts from this user are added directly)
-      if (post.userId !== user?.id) {
+      // Only add approved posts from other users (posts from this user are added directly)
+      if (post.userId !== user?.id && post.approved && !post.reviewed) {
         setAllPosts((prev) => [{ ...post, isNew: true }, ...prev]);
         newPostIds.current.add(post.id);
       }
@@ -94,8 +119,28 @@ export default function Page() {
       socket.off(SOCKET_EVENTS.POST_REVIEWED);
       socket.off(SOCKET_EVENTS.POST_REMOVED);
       socket.off(SOCKET_EVENTS.NEW_POST);
+      socket.off(SOCKET_EVENTS.POST_APPROVED);
+      socket.off(SOCKET_EVENTS.POST_REJECTED);
     };
-  }, [socket, user]);
+  }, [socket, user, allPosts]);
+
+  // Helper function to refetch approved posts
+  const fetchApprovedPosts = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await getApprovedPosts();
+      if (!error && data) {
+        const sortedPosts = [...data].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setAllPosts(sortedPosts);
+      }
+    } catch (error) {
+      console.error("Error fetching approved posts:", error);
+    }
+  };
 
   // Clear the new post flag after animation completes
   useEffect(() => {
@@ -125,6 +170,7 @@ export default function Page() {
         userId: user.id,
         createdAt: new Date().toISOString(),
         username: username || undefined, // Include the randomly generated username
+        approved: true, // Default to approved
       };
 
       // Save post to database
@@ -214,6 +260,7 @@ export default function Page() {
                 file={post.file}
                 type={post.type}
                 reviewed={post.reviewed}
+                approved={post.approved}
                 isOwner={post.userId === user?.id}
                 username={post.userId === user?.id ? username : post.username}
                 isNew={post.isNew}

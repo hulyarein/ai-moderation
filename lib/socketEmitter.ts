@@ -52,3 +52,29 @@ export const emitPostReviewed = (postId: string) => {
   // Emit to all clients
   io.emit(SOCKET_EVENTS.POST_REVIEWED, postId);
 };
+
+// Helper function to emit a post approved event
+export const emitPostApproved = (postId: string) => {
+  const io = getSocketInstance();
+  if (!io) {
+    console.warn("Socket.IO instance not available for emitting post approval");
+    return;
+  }
+
+  // Emit to all clients
+  io.emit(SOCKET_EVENTS.POST_APPROVED, postId);
+};
+
+// Helper function to emit a post rejected event
+export const emitPostRejected = (postId: string) => {
+  const io = getSocketInstance();
+  if (!io) {
+    console.warn(
+      "Socket.IO instance not available for emitting post rejection"
+    );
+    return;
+  }
+
+  // Emit to all clients
+  io.emit(SOCKET_EVENTS.POST_REJECTED, postId);
+};

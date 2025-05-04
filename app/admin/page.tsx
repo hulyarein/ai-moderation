@@ -2,7 +2,12 @@
 import AdminPostCard from "@/components/admincard";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
-import { getPosts, updatePostReviewStatus, deletePost } from "@/lib/database";
+import {
+  getPosts,
+  updatePostReviewStatus,
+  updatePostApprovalStatus,
+  deletePost,
+} from "@/lib/database";
 import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +15,9 @@ import { useEffect, useState } from "react";
 export default function Page() {
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "flagged">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "flagged" | "reviewed">(
+    "all"
+  );
   const { user, isAdmin, loading, signOut } = useAuth();
   const { socket, isConnected, emitPostReviewed, emitPostRemoved } =
     useSocket("ADMIN");
@@ -125,6 +132,52 @@ export default function Page() {
     }
   };
 
+  const handleApprovePost = async (postId: string) => {
+    try {
+      // Update post approval status in database to approve
+      const { error } = await updatePostApprovalStatus(postId, true);
+
+      if (error) {
+        console.error("Error approving post:", error);
+        return;
+      }
+
+      // Update local state
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? { ...post, reviewed: false, approved: true }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error("Error approving post:", error);
+    }
+  };
+
+  const handleRejectPost = async (postId: string) => {
+    try {
+      // Update post approval status in database to reject
+      const { error } = await updatePostApprovalStatus(postId, false);
+
+      if (error) {
+        console.error("Error rejecting post:", error);
+        return;
+      }
+
+      // Update local state
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? { ...post, reviewed: false, approved: false }
+            : post
+        )
+      );
+    } catch (error) {
+      console.error("Error rejecting post:", error);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     router.push("/login");
@@ -143,6 +196,9 @@ export default function Page() {
       post.file.toLowerCase().includes("kill") ||
       post.file.toLowerCase().includes("explicit")
   );
+
+  // Get posts that are under review
+  const reviewedPosts = posts.filter((post) => post.reviewed);
 
   if (loading || (!user && !isAdmin) || isLoading) {
     return (
@@ -245,6 +301,21 @@ export default function Page() {
               </span>
             )}
           </button>
+          <button
+            className={`py-3 px-6 font-medium text-sm flex items-center ${
+              activeTab === "reviewed"
+                ? "text-red-700 border-b-2 border-red-700"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => setActiveTab("reviewed")}
+          >
+            Content Moderation
+            {reviewedPosts.length > 0 && (
+              <span className="ml-2 bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                {reviewedPosts.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {activeTab === "all" ? (
@@ -264,6 +335,8 @@ export default function Page() {
                     file={post.file}
                     type={post.type}
                     username={post.username}
+                    reviewed={post.reviewed}
+                    approved={post.approved}
                     classification={
                       post.type === "image" ? "Image" : "Text Content"
                     }
@@ -290,11 +363,11 @@ export default function Page() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === "flagged" ? (
           <>
             <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
               <h2 className="text-xl font-semibold text-gray-800">
-                Content Moderation Queue
+                Potentially Harmful Content
               </h2>
               <div className="text-sm font-medium text-gray-500">
                 {flaggedPosts.length}{" "}
@@ -310,6 +383,8 @@ export default function Page() {
                     file={post.file}
                     type={post.type}
                     username={post.username}
+                    reviewed={post.reviewed}
+                    approved={post.approved}
                     classification={
                       post.type === "image"
                         ? "Fake Image"
@@ -321,6 +396,61 @@ export default function Page() {
                     hideActions={false} // Show approve/remove buttons for flagged content
                     onRemove={() => handleRemovePost(post.id)}
                     onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 px-6 bg-white rounded-xl shadow-sm border border-gray-100">
+                <img
+                  src="/globe.svg"
+                  alt="No posts"
+                  className="w-24 h-24 mb-6 opacity-60"
+                />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                  No flagged content
+                </h3>
+                <p className="text-gray-500 text-center max-w-md">
+                  Great job! There are no posts that require flagging at this
+                  time.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Content Moderation Queue
+              </h2>
+              <div className="text-sm font-medium text-gray-500">
+                {reviewedPosts.length}{" "}
+                {reviewedPosts.length === 1 ? "post" : "posts"} under review
+              </div>
+            </div>
+
+            {reviewedPosts.length > 0 ? (
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {reviewedPosts.map((post) => (
+                  <AdminPostCard
+                    key={post.id}
+                    file={post.file}
+                    type={post.type}
+                    username={post.username}
+                    reviewed={post.reviewed}
+                    approved={post.approved}
+                    classification={
+                      post.type === "image"
+                        ? "Fake Image"
+                        : post.file.toLowerCase().includes("hate") ||
+                          post.file.toLowerCase().includes("kill")
+                        ? "Toxic Content"
+                        : "Explicit Content"
+                    }
+                    hideActions={false} // Show safe/unsafe buttons for reviewed content
+                    onRemove={() => handleRemovePost(post.id)}
+                    onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
+                    onApprove={() => handleApprovePost(post.id)}
+                    onReject={() => handleRejectPost(post.id)}
                   />
                 ))}
               </div>
