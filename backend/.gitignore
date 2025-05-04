@@ -1,3 +1,5 @@
 venv
-models
 uploads
+
+models/deepfake-classifier/**
+models/text-classifier/**
