@@ -1,7 +1,6 @@
 version: '3'
 services:
   ai-moderation-backend:
-    container_name: AI-moderation-backend
     ports:
       - "8002:8002"  # Expose the Flask app port to the host
     build: 
@@ -11,8 +10,6 @@ services:
       - .:/app  # Mount the current directory to /app inside the container
     networks:
       - ai-moderation-backend
-    deploy:
-      replicas: 3  # Scale to 3 instances
 
 networks:
   ai-moderation-backend:

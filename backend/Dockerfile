@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 8002
 
 # Run the Flask app using Gunicorn with 4 workers (adjust workers as necessary)
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8002", "app:app"]
+CMD ["gunicorn", "--workers", "16", "--bind", "0.0.0.0:8002", "app:app"]
