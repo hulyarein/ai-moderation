@@ -42,14 +42,22 @@ def predict_deepfake():
     try:
         # Get the image from request
         image_file = request.files["image"]
-        image = Image.open(io.BytesIO(image_file.read()))
+
+        # Open image and convert to RGB (in case it's RGBA or L)
+        image = Image.open(io.BytesIO(image_file.read())).convert("RGB")
+
+        # Convert to JPEG by saving to a buffer
+        jpeg_buffer = io.BytesIO()
+        image.save(jpeg_buffer, format="JPEG")
+        jpeg_buffer.seek(0)
+
+        # Reload the image from JPEG buffer
+        image = Image.open(jpeg_buffer)
 
         # Preprocess the image
-        image = image.resize(
-            (224, 224)
-        )  # Adjust size according to your model's requirements
+        image = image.resize((224, 224))
         image_array = img_to_array(image)
-        image_array = image_array / 255.0  # Normalize
+        image_array = image_array / 255.0
         image_array = np.expand_dims(image_array, axis=0)
 
         # Make prediction
