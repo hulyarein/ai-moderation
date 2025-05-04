@@ -10,6 +10,7 @@ backend/uploads/
 backend/models/deepfake-classifier/**
 backend/models/text-classifier/**
 
+
 # === FRONTEND (CLIENT) ===
 client/node_modules/
 client/.pnp/
