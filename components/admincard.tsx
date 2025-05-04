@@ -145,29 +145,17 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
 
-            {/* Review overlay */}
+            {/* Review indicator - Modified to be semi-transparent to show content */}
             {reviewed && (
-              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-                <AlertTriangle className="text-amber-400 h-6 w-6" />
-                <span className="text-white font-medium text-center text-sm px-4">
-                  Under Review
-                </span>
+              <div className="absolute top-0 right-0 m-2 bg-amber-500 px-2 py-1 rounded-md flex items-center text-white shadow-md">
+                <AlertTriangle className="text-white h-4 w-4 mr-1" />
+                <span className="text-sm font-medium">Under Review</span>
               </div>
             )}
           </div>
         ) : (
           <div className="p-4 min-h-[100px] max-h-[200px] overflow-y-auto relative">
             <p className="text-gray-800 text-sm">{file}</p>
-
-            {/* Review overlay for text */}
-            {reviewed && (
-              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-                <AlertTriangle className="text-amber-400 h-6 w-6" />
-                <span className="text-white font-medium text-center text-sm px-4">
-                  Under Review
-                </span>
-              </div>
-            )}
           </div>
         )}
       </div>
