@@ -33,18 +33,22 @@ export default function handler(
     // Enable CORS for all origins in development
     // In production, you might want to restrict this
     cors: {
-      origin:
-        process.env.NODE_ENV === "production"
-          ? new URL(
-              process.env.NEXT_PUBLIC_BASE_URL ||
-                "https://ai-moderation.vercel.app"
-            ).origin
-          : "*",
+      origin: "*", // Allow all origins for now
       methods: ["GET", "POST"],
       credentials: true,
     },
     // Configure transports - important for Vercel
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"], // Try polling first for Vercel, then websocket
+    pingTimeout: 30000, // Increase ping timeout for Vercel
+    pingInterval: 25000, // Increase ping interval for Vercel
+    upgradeTimeout: 30000, // Increase upgrade timeout
+    allowUpgrades: true,
+    perMessageDeflate: {
+      threshold: 2048, // Size in bytes, compression only for messages larger than this
+    },
+    httpCompression: {
+      threshold: 2048,
+    },
   });
 
   // Store the socket.io server instance for access from anywhere
@@ -110,5 +114,6 @@ export default function handler(
 export const config = {
   api: {
     bodyParser: false,
+    externalResolver: true, // Important for WebSockets on Vercel
   },
 };

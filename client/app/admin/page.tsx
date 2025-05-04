@@ -1,31 +1,31 @@
 "use client";
-import AdminPostCard from "@/components/admincard";
-import { useAuth } from "@/hooks/useAuth";
-import { useSocket } from "@/hooks/useSocket";
+import { useState, useEffect, useCallback } from "react";
+import AdminCard from "@/components/admincard";
 import {
   getPosts,
-  updatePostReviewStatus,
-  updatePostApprovalStatus,
   deletePost,
+  updatePostApprovalStatus,
+  updatePostReviewStatus,
+  moderateAllContent,
   detectToxicPosts,
   detectDeepfakeImages,
-  moderateAllContent,
 } from "@/lib/database";
-import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
-  Shield,
   AlertCircle,
   CheckCircle,
+  Shield,
   RefreshCw,
   Search,
 } from "lucide-react";
 import Image from "next/image";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useSocket } from "@/hooks/useSocket";
+import { SOCKET_EVENTS, Post as PostType } from "@/lib/socket";
 
-export default function Page() {
+export default function Admin() {
   const [posts, setPosts] = useState<PostType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<"all" | "flagged" | "reviewed">(
     "all"
   );
@@ -58,67 +58,118 @@ export default function Page() {
     isNew: boolean;
     read: boolean;
   } | null>(null);
-  const { user, isAdmin, loading, signOut } = useAuth();
-  const { socket, isConnected, emitPostReviewed, emitPostRemoved } =
-    useSocket("ADMIN");
-  const router = useRouter();
 
-  // Check if user is authenticated and is an admin
+  const { isAdmin, isLoading: authLoading, signOut } = useAuth();
+  const router = useRouter();
+  const { socket, isConnected, emitPostRemoved } = useSocket("ADMIN");
+
+  // Count metrics
+  const totalPosts = posts.length;
+  const textPosts = posts.filter(
+    (post) => post.type === "text" && post.approved !== false
+  ).length;
+  const imagePosts = posts.filter(
+    (post) => post.type === "image" && post.approved !== false
+  ).length;
+
+  // Filter posts into different categories
+  const flaggedPosts = posts.filter(
+    (post) =>
+      !post.approved || // Include posts marked as not approved
+      (post.type === "image" && post.approved !== true) || // Only include image posts that haven't been explicitly approved
+      (post.file && post.file.toLowerCase().includes("hate")) ||
+      (post.file && post.file.toLowerCase().includes("kill")) ||
+      (post.file && post.file.toLowerCase().includes("explicit"))
+  );
+
+  const reviewedPosts = posts.filter((post) => post.reviewed);
+
+  // Effect to check for admin status and redirect if not
   useEffect(() => {
-    if (!loading && (!user || !isAdmin)) {
+    console.log("Auth state in admin:", { authLoading, isAdmin });
+
+    // Only redirect when auth is fully loaded and user is definitely not an admin
+    if (authLoading === false && isAdmin === false) {
+      console.log("Redirecting to login from admin page");
       router.push("/login");
     }
-  }, [user, isAdmin, loading, router]);
+  }, [authLoading, isAdmin, router]);
 
-  // Fetch all posts from the database
-  useEffect(() => {
-    const fetchPosts = async () => {
-      if (!user || !isAdmin) return;
-
-      try {
-        const { data, error } = await getPosts();
-
-        if (error) {
-          console.error("Error fetching posts:", error);
-        } else if (data) {
-          setPosts(data);
-        }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      } finally {
-        setIsLoading(false);
+  // Function to fetch all posts from the database
+  const fetchPosts = useCallback(async () => {
+    try {
+      const { data, error } = await getPosts();
+      if (error) throw error;
+      if (data) {
+        // Sort by created date with newest first
+        const sortedPosts = [...data].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setPosts(sortedPosts);
       }
-    };
+    } catch (err) {
+      console.error("Error fetching posts:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    if (user && isAdmin) {
+  // Initial fetch of posts
+  useEffect(() => {
+    if (isAdmin) {
       fetchPosts();
     }
-  }, [user, isAdmin]);
+  }, [isAdmin, fetchPosts]);
 
-  // Listen for new posts via websocket
+  // Listen for realtime updates
   useEffect(() => {
     if (!socket) return;
 
     // Listen for new posts
     socket.on(SOCKET_EVENTS.NEW_POST, (post: PostType) => {
-      console.log("New post received via WebSocket:", post.id);
-      setPosts((prev) => [post, ...prev]);
+      console.log("New post received in admin:", post);
+      setPosts((currentPosts) => [post, ...currentPosts]);
+    });
+
+    // Listen for post review status changes
+    socket.on(SOCKET_EVENTS.POST_REVIEWED, (postId: string) => {
+      console.log("Post reviewed notification received:", postId);
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === postId ? { ...post, reviewed: true } : post
+        )
+      );
+    });
+
+    // Listen for post approval status changes
+    socket.on(SOCKET_EVENTS.POST_APPROVED, (postId: string) => {
+      console.log("Post approved notification received:", postId);
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === postId
+            ? { ...post, approved: true, reviewed: false }
+            : post
+        )
+      );
+    });
+
+    // Listen for post rejection events
+    socket.on(SOCKET_EVENTS.POST_REJECTED, (postId: string) => {
+      console.log("Post rejected notification received:", postId);
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post.id === postId
+            ? { ...post, approved: false, reviewed: false }
+            : post
+        )
+      );
     });
 
     // Listen for post removal events
     socket.on(SOCKET_EVENTS.POST_REMOVED, (postId: string) => {
-      console.log("Post removal notification received:", postId);
-      setPosts((prev) => prev.filter((post) => post.id !== postId));
-    });
-
-    // Listen for post review events
-    socket.on(SOCKET_EVENTS.POST_REVIEWED, (postId: string) => {
-      console.log("Post review notification received:", postId);
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId ? { ...post, reviewed: true } : post
-        )
-      );
+      console.log("Post removed notification received:", postId);
+      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
     });
 
     // Listen for automated moderation alerts
@@ -140,122 +191,80 @@ export default function Page() {
         });
 
         // Refresh posts to get the updated status
-        const fetchPosts = async () => {
-          const { data, error } = await getPosts();
-          if (!error && data) {
-            setPosts(data);
-          }
-        };
-
         fetchPosts();
       }
     );
 
     return () => {
       socket.off(SOCKET_EVENTS.NEW_POST);
-      socket.off(SOCKET_EVENTS.POST_REMOVED);
       socket.off(SOCKET_EVENTS.POST_REVIEWED);
+      socket.off(SOCKET_EVENTS.POST_APPROVED);
+      socket.off(SOCKET_EVENTS.POST_REJECTED);
+      socket.off(SOCKET_EVENTS.POST_REMOVED);
       socket.off(SOCKET_EVENTS.MODERATION_ALERT);
     };
-  }, [socket]);
+  }, [socket, fetchPosts]);
 
-  const handleRemovePost = async (postId: string) => {
+  // Handle approving a post
+  const handleApprove = useCallback(async (postId: string) => {
     try {
-      // Delete post from database
-      const { error } = await deletePost(postId);
-
-      if (error) {
-        console.error("Error deleting post:", error);
-        return;
-      }
-
-      // Update local state
-      setPosts((prev) => prev.filter((post) => post.id !== postId));
-
-      // Notify clients via websocket
-      emitPostRemoved(postId);
-    } catch (error) {
-      console.error("Error removing post:", error);
-    }
-  };
-
-  const handleMarkFalsePositive = async (postId: string) => {
-    try {
-      // Update post review status in database
-      const { error } = await updatePostReviewStatus(postId, true);
-
-      if (error) {
-        console.error("Error updating post review status:", error);
-        return;
-      }
-
-      // Update local state
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId ? { ...post, reviewed: true } : post
-        )
-      );
-
-      // Notify clients via websocket
-      emitPostReviewed(postId);
-    } catch (error) {
-      console.error("Error marking post as false positive:", error);
-    }
-  };
-
-  const handleApprovePost = async (postId: string) => {
-    try {
-      // Update post approval status in database to approve
       const { error } = await updatePostApprovalStatus(postId, true);
-
-      if (error) {
-        console.error("Error approving post:", error);
-        return;
-      }
-
-      // Update local state
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? { ...post, reviewed: false, approved: true }
-            : post
-        )
-      );
-    } catch (error) {
-      console.error("Error approving post:", error);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error approving post:", err);
     }
-  };
+  }, []);
 
-  const handleRejectPost = async (postId: string) => {
+  // Handle rejecting a post
+  const handleReject = useCallback(async (postId: string) => {
     try {
-      // Update post approval status in database to reject
       const { error } = await updatePostApprovalStatus(postId, false);
+      if (error) throw error;
 
-      if (error) {
-        console.error("Error rejecting post:", error);
-        return;
-      }
-
-      // Update local state
-      setPosts((prev) =>
-        prev.map((post) =>
+      // Update local state after successful rejection
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
           post.id === postId
-            ? { ...post, reviewed: false, approved: false }
+            ? { ...post, approved: false, reviewed: false }
             : post
         )
       );
-    } catch (error) {
-      console.error("Error rejecting post:", error);
-    }
-  };
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/login");
-  };
+      // Automatically switch to the flagged content tab
+      setActiveTab("flagged");
+    } catch (err) {
+      console.error("Error rejecting post:", err);
+    }
+  }, []);
+
+  // Handle marking a post for review
+  const handleMarkForReview = useCallback(async (postId: string) => {
+    try {
+      const { error } = await updatePostReviewStatus(postId, true);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error marking post for review:", err);
+    }
+  }, []);
+
+  // Handle deleting a post
+  const handleDelete = useCallback(
+    async (postId: string) => {
+      try {
+        const { error } = await deletePost(postId);
+        if (error) throw error;
+
+        // Notify clients via websocket
+        emitPostRemoved(postId);
+      } catch (err) {
+        console.error("Error deleting post:", err);
+      }
+    },
+    [emitPostRemoved]
+  );
 
   // Handle toxicity detection
-  const handleScanForToxicity = async () => {
+  const handleScanForToxicity = useCallback(async () => {
     setIsScanningToxicity(true);
     setScanResult(null);
 
@@ -271,10 +280,7 @@ export default function Page() {
 
       // Refresh the posts list to show updated review statuses
       if (result.success && result.toxic > 0) {
-        const { data, error } = await getPosts();
-        if (!error && data) {
-          setPosts(data);
-        }
+        fetchPosts();
       }
     } catch (error) {
       console.error("Error during toxicity scan:", error);
@@ -286,10 +292,10 @@ export default function Page() {
     } finally {
       setIsScanningToxicity(false);
     }
-  };
+  }, [fetchPosts]);
 
   // Handle deepfake image detection
-  const handleScanForDeepfakes = async () => {
+  const handleScanForDeepfakes = useCallback(async () => {
     setIsScanningDeepfakes(true);
     setScanResult(null);
 
@@ -305,10 +311,7 @@ export default function Page() {
 
       // Refresh the posts list to show updated review statuses
       if (result.success && result.deepfakes > 0) {
-        const { data, error } = await getPosts();
-        if (!error && data) {
-          setPosts(data);
-        }
+        fetchPosts();
       }
     } catch (error) {
       console.error("Error during deepfake scan:", error);
@@ -320,10 +323,10 @@ export default function Page() {
     } finally {
       setIsScanningDeepfakes(false);
     }
-  };
+  }, [fetchPosts]);
 
-  // Handle combined moderation of all content
-  const handleModerateAll = async () => {
+  // Handle scanning all posts for moderation
+  const handleModerateAll = useCallback(async () => {
     setIsScanningAll(true);
     setScanResult(null);
 
@@ -335,10 +338,7 @@ export default function Page() {
 
       // Refresh the posts list to show updated review statuses
       if (result.success && result.flagged.total > 0) {
-        const { data, error } = await getPosts();
-        if (!error && data) {
-          setPosts(data);
-        }
+        fetchPosts();
       }
     } catch (error) {
       console.error("Error during content moderation:", error);
@@ -350,31 +350,15 @@ export default function Page() {
     } finally {
       setIsScanningAll(false);
     }
-  };
+  }, [fetchPosts]);
 
-  // Calculate post statistics
-  const totalPosts = posts.length;
-  const textPosts = posts.filter(
-    (post) => post.type === "text" && post.approved !== false
-  ).length;
-  const imagePosts = posts.filter(
-    (post) => post.type === "image" && post.approved !== false
-  ).length;
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    router.push("/login");
+  }, [signOut, router]);
 
-  // Get flagged posts (posts containing problematic content)
-  const flaggedPosts = posts.filter(
-    (post) =>
-      !post.approved || // Include posts marked as not approved
-      (post.type === "image" && post.approved !== true) || // Only include image posts that haven't been explicitly approved
-      post.file.toLowerCase().includes("hate") ||
-      post.file.toLowerCase().includes("kill") ||
-      post.file.toLowerCase().includes("explicit")
-  );
-
-  // Get posts that are under review
-  const reviewedPosts = posts.filter((post) => post.reviewed);
-
-  if (loading || (!user && !isAdmin) || isLoading) {
+  // Loading state
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center space-y-4">
@@ -383,6 +367,11 @@ export default function Page() {
         </div>
       </div>
     );
+  }
+
+  // Redirect to login handled by effect above
+  if (!isAdmin) {
+    return null;
   }
 
   return (
@@ -710,22 +699,16 @@ export default function Page() {
                 {posts
                   .filter((post) => post.approved !== false)
                   .map((post) => (
-                    <AdminPostCard
+                    <AdminCard
                       key={post.id}
-                      file={post.file}
-                      type={post.type}
-                      username={post.username}
-                      profilePicture={post.profile}
-                      reviewed={post.reviewed}
-                      approved={post.approved}
-                      classification={
-                        post.type === "image" ? "Image" : "Text Content"
-                      }
+                      post={{
+                        ...post,
+                        classification:
+                          post.type === "image" ? "Image" : "Text Content",
+                      }}
                       hideActions={true} // Hide approve/remove buttons for all posts tab
-                      onRemove={() => handleRemovePost(post.id)}
-                      onMarkFalsePositive={() =>
-                        handleMarkFalsePositive(post.id)
-                      }
+                      onRemove={() => handleDelete(post.id)}
+                      onMarkForReview={() => handleMarkForReview(post.id)}
                     />
                   ))}
               </div>
@@ -763,25 +746,23 @@ export default function Page() {
             {flaggedPosts.length > 0 ? (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {flaggedPosts.map((post) => (
-                  <AdminPostCard
+                  <AdminCard
                     key={post.id}
-                    file={post.file}
-                    type={post.type}
-                    username={post.username}
-                    profilePicture={post.profile}
-                    reviewed={post.reviewed}
-                    approved={post.approved}
-                    classification={
-                      post.type === "image"
-                        ? "Fake Image"
-                        : post.file.toLowerCase().includes("hate") ||
-                          post.file.toLowerCase().includes("kill")
-                        ? "Toxic Content"
-                        : "Explicit Content"
-                    }
+                    post={{
+                      ...post,
+                      classification:
+                        post.type === "image"
+                          ? "Fake Image"
+                          : (post.file &&
+                              post.file.toLowerCase().includes("hate")) ||
+                            (post.file &&
+                              post.file.toLowerCase().includes("kill"))
+                          ? "Toxic Content"
+                          : "Explicit Content",
+                    }}
                     hideActions={true} // Hide actions for flagged content
-                    onRemove={() => handleRemovePost(post.id)}
-                    onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
+                    onRemove={() => handleDelete(post.id)}
+                    onMarkForReview={() => handleMarkForReview(post.id)}
                   />
                 ))}
               </div>
@@ -819,27 +800,24 @@ export default function Page() {
             {reviewedPosts.length > 0 ? (
               <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {reviewedPosts.map((post) => (
-                  <AdminPostCard
+                  <AdminCard
                     key={post.id}
-                    file={post.file}
-                    type={post.type}
-                    username={post.username}
-                    profilePicture={post.profile}
-                    reviewed={post.reviewed}
-                    approved={post.approved}
-                    classification={
-                      post.type === "image"
-                        ? "Fake Image"
-                        : post.file.toLowerCase().includes("hate") ||
-                          post.file.toLowerCase().includes("kill")
-                        ? "Toxic Content"
-                        : "Explicit Content"
-                    }
-                    hideActions={false} // Show safe/unsafe buttons for reviewed content
-                    onRemove={() => handleRemovePost(post.id)}
-                    onMarkFalsePositive={() => handleMarkFalsePositive(post.id)}
-                    onApprove={() => handleApprovePost(post.id)}
-                    onReject={() => handleRejectPost(post.id)}
+                    post={{
+                      ...post,
+                      classification:
+                        post.type === "image"
+                          ? "Fake Image"
+                          : (post.file &&
+                              post.file.toLowerCase().includes("hate")) ||
+                            (post.file &&
+                              post.file.toLowerCase().includes("kill"))
+                          ? "Toxic Content"
+                          : "Explicit Content",
+                    }}
+                    hideActions={false} // Show approve/reject buttons for reviewed content
+                    onRemove={() => handleDelete(post.id)}
+                    onApprove={() => handleApprove(post.id)}
+                    onReject={() => handleReject(post.id)}
                   />
                 ))}
               </div>

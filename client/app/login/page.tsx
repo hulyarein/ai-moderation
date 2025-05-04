@@ -15,7 +15,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     // If user is already logged in as admin, redirect to admin page
-    if (session && isAdmin) {
+    console.log("Auth state in login:", { session, isAdmin });
+
+    // Only redirect when session exists and user is definitely an admin
+    if (session && isAdmin === true) {
+      console.log("Redirecting to admin from login page");
       router.push("/admin");
     }
   }, [session, isAdmin, router]);

@@ -2,18 +2,13 @@ import React from "react";
 import { AlertTriangle, Check, X, FileText, User, Shield } from "lucide-react";
 import Image from "next/image";
 import { Image as ImageIcon } from "lucide-react";
+import { Post as PostType } from "@/lib/socket";
 
 type AdminPostCardProps = {
-  file: string;
-  type: "text" | "image";
-  classification: string;
-  username?: string;
-  profilePicture?: string; // Add profile picture prop
+  post: PostType & { classification?: string };
   hideActions?: boolean;
-  reviewed?: boolean;
-  approved?: boolean;
   onRemove: () => void;
-  onMarkFalsePositive: () => void;
+  onMarkForReview?: () => void;
   onApprove?: () => void;
   onReject?: () => void;
 };
@@ -57,19 +52,26 @@ const defaultConfig = {
 };
 
 const AdminPostCard: React.FC<AdminPostCardProps> = ({
-  file,
-  type,
-  classification,
-  username,
-  profilePicture,
+  post,
   hideActions = false,
-  reviewed = false,
-  approved = true,
   onRemove,
-  onMarkFalsePositive,
+  onMarkForReview,
   onApprove,
   onReject,
 }) => {
+  const {
+    file,
+    type,
+    username,
+    profile: profilePicture,
+    reviewed = false,
+    approved = true,
+    createdAt,
+  } = post;
+
+  const classification =
+    post.classification || (type === "image" ? "Image" : "Text Content");
+
   // Use the config for the classification, or fall back to default if not found
   const config = classificationConfig[classification] || defaultConfig;
 
@@ -168,6 +170,13 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
         )}
       </div>
 
+      {/* Date display - added to show createdAt */}
+      {createdAt && (
+        <div className="px-3 py-2 text-xs text-gray-500">
+          {new Date(createdAt).toLocaleString()}
+        </div>
+      )}
+
       {/* Actions */}
       {!hideActions && (
         <div className="p-3 bg-gray-50 flex justify-between items-center gap-2">
@@ -200,11 +209,11 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
                 <span>Remove</span>
               </button>
               <button
-                onClick={onMarkFalsePositive}
+                onClick={onMarkForReview}
                 className="flex-1 flex items-center justify-center gap-1.5 text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
               >
                 <Check size={16} />
-                <span>Approve</span>
+                <span>Flag for Review</span>
               </button>
             </>
           )}
