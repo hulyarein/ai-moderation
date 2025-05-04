@@ -41,7 +41,8 @@ Follow the prompts to create an admin user (recommended email: <admin@admin.com>
 
    - Download files from these links:
      - <https://limewire.com/d/Gu9fu#jhDVQoHO8i>
-     - <https://limewire.com/d/8rjQy#ODIEabItOr>
+     - <https://limewire.com/d/Gu9fu#jhDVQoHO8i>
+     - <https://limewire.com/d/19gzt#A9tqjzlwV2>
    - Create directory: `backend/models/text-classifier`
    - Extract the downloaded files into this directory
 
