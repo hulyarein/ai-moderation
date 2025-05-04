@@ -92,11 +92,11 @@ const PostCard: React.FC<PostCardProps> = ({
         {/* Post Content */}
         <div className="relative">
           {type === "image" ? (
-            <div className="relative">
+            <div className="relative bg-gray-100 aspect-square flex justify-center items-center">
               <img
                 src={file}
                 alt="User post"
-                className={`w-full h-48 sm:h-56 md:h-64 object-cover ${
+                className={`max-w-full max-h-full object-contain ${
                   reviewed ? "opacity-30" : ""
                 }`}
                 loading="lazy"

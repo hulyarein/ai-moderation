@@ -22,6 +22,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Create a preview URL for the selected image
   useEffect(() => {
@@ -59,15 +60,51 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setUploadError(null); // Clear any previous errors
     }
   };
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
+    setUploadError(null);
+  };
+
+  // Function to upload image to backend
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch(
+        "https://aliac-ai-moderation-backend.wetooa.me/images",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload image");
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || "Upload unsuccessful");
+      }
+
+      // Return the image URL using the filename from the response
+      return `https://aliac-ai-moderation-backend.wetooa.me/images/${data.filename}`;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      throw error;
+    }
   };
 
   const handlePost = async () => {
     setIsSubmitting(true);
+    setUploadError(null);
+
     try {
       if (
         activeTab === "text" &&
@@ -77,13 +114,20 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
         onSubmit({ file: text.trim(), type: "text", reviewed: false });
         resetAndClose();
       } else if (activeTab === "image" && selectedFile) {
-        const imageUrl = URL.createObjectURL(selectedFile);
-        onSubmit({ file: imageUrl, type: "image", reviewed: false });
-        resetAndClose();
+        try {
+          // First upload the image to the backend
+          const imageUrl = await uploadImage(selectedFile);
+
+          // Then submit the post with the image URL
+          onSubmit({ file: imageUrl, type: "image", reviewed: false });
+          resetAndClose();
+        } catch (error: any) {
+          setUploadError(error.message || "Failed to upload image");
+          setIsSubmitting(false);
+        }
       }
     } catch (error) {
       console.error("Error posting:", error);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -93,6 +137,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
     setText("");
     setActiveTab("text");
     setIsSubmitting(false);
+    setUploadError(null);
     onClose();
   };
 
@@ -102,6 +147,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
         className="absolute inset-0 bg-black/60 transition-opacity"
         onClick={isSubmitting ? undefined : onClose}
       ></div>
+
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative z-10 transition-all transform animate-fadeIn">
         {/* Header */}
         <div className="flex justify-between items-center mb-5">
@@ -206,7 +252,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
                 <img
                   src={preview || ""}
                   alt="Preview"
-                  className="w-full h-48 object-cover rounded-xl"
+                  className="w-full h-auto aspect-square object-contain bg-gray-100"
                 />
                 <button
                   onClick={handleRemoveFile}
@@ -220,6 +266,9 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
                   {selectedFile.name}
                 </div>
               </div>
+            )}
+            {uploadError && (
+              <div className="mt-2 text-red-500 text-sm">{uploadError}</div>
             )}
           </div>
         )}
@@ -238,7 +287,7 @@ const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, onSubmit }) => {
           {isSubmitting ? (
             <span className="flex items-center justify-center">
               <Loader2 size={20} className="animate-spin mr-2" />
-              Posting...
+              {activeTab === "image" ? "Uploading..." : "Posting..."}
             </span>
           ) : (
             "Share Post"

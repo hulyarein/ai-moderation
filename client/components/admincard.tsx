@@ -147,11 +147,11 @@ const AdminPostCard: React.FC<AdminPostCardProps> = ({
       {/* Post Content */}
       <div className="p-0">
         {type === "image" ? (
-          <div className="relative">
+          <div className="relative bg-gray-100 aspect-square flex justify-center items-center">
             <img
               src={file}
               alt="Post content"
-              className="w-full h-48 object-cover"
+              className="max-w-full max-h-full object-contain"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
 
