@@ -16,9 +16,16 @@ export const useSocket = (roomType: keyof typeof CLIENT_ROOMS) => {
   useEffect(() => {
     if (!socketInstance) {
       // Create a new socket instance if it doesn't exist
-      socketInstance = io({
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `${protocol}//${host}` 
+        : 'http://localhost:3000';
+      
+      socketInstance = io(baseUrl, {
         path: "/api/socketio",
-        autoConnect: true,
+        addTrailingSlash: false,
+        transports: ['websocket', 'polling'], // Prefer WebSocket, fallback to polling
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,

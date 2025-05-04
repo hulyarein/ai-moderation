@@ -16,6 +16,15 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Configure for better WebSocket support in Vercel
+  webpack: (config) => {
+    config.externals.push({
+      bufferutil: "bufferutil",
+      "utf-8-validate": "utf-8-validate",
+    });
+    return config;
+  },
+
   // Ensure proper handling of the Socket.IO endpoints
   rewrites: async () => {
     return [
