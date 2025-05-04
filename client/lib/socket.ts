@@ -34,6 +34,11 @@ export enum SOCKET_EVENTS {
   POSTS_UPDATE = "posts-update",
   JOIN_ROOM = "join-room",
   LEAVE_ROOM = "leave-room",
+  MODERATION_ALERT = "moderation-alert",
+  MODERATION_TIMER_UPDATE = "moderation-timer-update",
+  MODERATION_STATUS_UPDATE = "moderation-status-update",
+  TOGGLE_MODERATION = "toggle-moderation",
+  MODERATION_SCAN_STARTED = "moderation-scan-started",
 }
 
 // Client room types
