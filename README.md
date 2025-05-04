@@ -16,6 +16,7 @@ A Next.js application featuring real-time content moderation with Supabase authe
 1. Create a Supabase account at [https://supabase.com](https://supabase.com) and create a new project
 2. From your Supabase dashboard, get your project URL and API keys
 3. Copy the `.env.example` file to `.env.local` and update with your Supabase credentials:
+
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
@@ -32,7 +33,25 @@ yarn install
 pnpm install
 ```
 
-### 3. Create Admin Account
+Follow the prompts to create an admin user (recommended email: <admin@admin.com>).
+
+### 3. Download AI Models
+
+1. Download the text-classifier model:
+
+   - Download files from these links:
+     - <https://limewire.com/d/Gu9fu#jhDVQoHO8i>
+     - <https://limewire.com/d/Gu9fu#jhDVQoHO8i>
+     - <https://limewire.com/d/19gzt#A9tqjzlwV2>
+   - Create directory: `backend/models/text-classifier`
+   - Extract the downloaded files into this directory
+
+2. Download the deepfake-classifier model:
+   - Download from: <https://drive.google.com/drive/folders/1DhFqIs8tl1mkXD_u_AK40y7RUhg8WJVo>
+   - Create directory: `backend/models/deepfake-classifier`
+   - Extract the downloaded files into this directory
+
+### 4. Create Admin Account
 
 Use the provided script to create an admin account:
 
@@ -40,9 +59,7 @@ Use the provided script to create an admin account:
 npx tsx scripts/create-admin.ts
 ```
 
-Follow the prompts to create an admin user (recommended email: admin@admin.com).
-
-### 4. Start the Development Server
+### 5. Start the Development Server
 
 ```bash
 npm run dev

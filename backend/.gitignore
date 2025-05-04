@@ -1,0 +1,5 @@
+venv
+uploads
+
+models/deepfake-classifier/**
+models/text-classifier/**
