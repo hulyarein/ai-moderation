@@ -188,7 +188,8 @@ export const detectToxicPosts = async () => {
     .from("posts")
     .select("*")
     .eq("type", "text")
-    .eq("reviewed", false); // Only scan posts that aren't already under review
+    .eq("reviewed", false)
+    .eq("approved", true); // Only scan posts that aren't already under review
 
   if (error) {
     console.error("Error fetching posts for toxicity check:", error);
@@ -270,7 +271,8 @@ export const detectDeepfakeImages = async () => {
     .from("posts")
     .select("*")
     .eq("type", "image")
-    .eq("reviewed", false); // Only scan posts that aren't already under review
+    .eq("reviewed", false)
+    .eq("approved", true); // Only scan posts that aren't already under review
 
   if (error) {
     console.error("Error fetching posts for deepfake check:", error);

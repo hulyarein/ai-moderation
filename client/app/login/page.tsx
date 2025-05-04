@@ -3,6 +3,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -178,9 +179,9 @@ export default function LoginPage() {
           <div className="mt-8 text-center text-sm text-gray-500">
             <p>
               Not an admin?{" "}
-              <a href="/" className="text-red-600 hover:text-red-800">
+              <Link href="/" className="text-red-600 hover:text-red-800">
                 Return to user dashboard
-              </a>
+              </Link>
             </p>
           </div>
         </div>

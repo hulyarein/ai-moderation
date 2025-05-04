@@ -1,7 +1,5 @@
 .next/
 
-node_modules/
-
 # === BACKEND ===
 backend/venv/
 backend/uploads/
