@@ -4,6 +4,7 @@ from PIL import Image
 import os
 import io
 import uuid
+import requests
 
 from transformers import AutoTokenizer
 
@@ -34,41 +35,70 @@ except Exception as e:
     print(f"Error loading models: {e}")
 
 
+def process_and_predict_image(image_data):
+    """Converts image data to JPEG, preprocesses, and makes prediction."""
+    # Open and convert to RGB
+    image = Image.open(io.BytesIO(image_data)).convert("RGB")
+
+    # Convert to JPEG in-memory
+    jpeg_buffer = io.BytesIO()
+    image.save(jpeg_buffer, format="JPEG")
+    jpeg_buffer.seek(0)
+    image = Image.open(jpeg_buffer)
+
+    # Resize and preprocess
+    image = image.resize((224, 224))
+    image_array = img_to_array(image)
+    image_array = image_array / 255.0
+    image_array = np.expand_dims(image_array, axis=0)
+
+    # Predict
+    prediction = deepfake_model.predict(image_array)[0][0]
+    is_deepfake = not bool(prediction > 0.9)
+
+    return is_deepfake, float(prediction)
+
+
 @app.route("/predict-deepfake", methods=["POST"])
 def predict_deepfake():
     if "image" not in request.files:
         return jsonify({"error": "No image provided"}), 400
 
     try:
-        # Get the image from request
         image_file = request.files["image"]
-
-        # Open image and convert to RGB (in case it's RGBA or L)
-        image = Image.open(io.BytesIO(image_file.read())).convert("RGB")
-
-        # Convert to JPEG by saving to a buffer
-        jpeg_buffer = io.BytesIO()
-        image.save(jpeg_buffer, format="JPEG")
-        jpeg_buffer.seek(0)
-
-        # Reload the image from JPEG buffer
-        image = Image.open(jpeg_buffer)
-
-        # Preprocess the image
-        image = image.resize((224, 224))
-        image_array = img_to_array(image)
-        image_array = image_array / 255.0
-        image_array = np.expand_dims(image_array, axis=0)
-
-        # Make prediction
-        prediction = deepfake_model.predict(image_array)[0][0]
-        is_deepfake = not bool(prediction > 0.9)
+        image_data = image_file.read()
+        is_deepfake, confidence = process_and_predict_image(image_data)
 
         return jsonify(
             {
                 "is_deepfake": is_deepfake,
-                "confidence": float(prediction),
+                "confidence": confidence,
                 "filename": image_file.filename,
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/predict-deepfake-url", methods=["POST"])
+def predict_deepfake_url():
+    data = request.get_json()
+    if not data or "image_url" not in data:
+        return jsonify({"error": "No image_url provided"}), 400
+
+    try:
+        response = requests.get(data["image_url"], timeout=5)
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to fetch image from URL"}), 400
+
+        is_deepfake, confidence = process_and_predict_image(response.content)
+
+        return jsonify(
+            {
+                "is_deepfake": is_deepfake,
+                "confidence": confidence,
+                "image_url": data["image_url"],
             }
         )
 
